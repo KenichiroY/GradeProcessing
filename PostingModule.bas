@@ -23,6 +23,8 @@ Public Sub Posting()
     Dim numTest As Long
     Dim validationResult As ValidationResult
     Dim subjectName As String
+    Dim hasAnyRetest As Boolean
+    Dim retestFlags() As Boolean   ' 列ごとの追試フラグ
     
     ' 処理開始
     Call ErrorHandlerModule.BeginProcess
@@ -129,10 +131,33 @@ Public Sub Posting()
     End If
     
     ' ========================================
+    ' 追試設定の判定（列ごとのセル値判定）
+    ' ========================================
+    ReDim retestFlags(1 To numTest)
+    hasAnyRetest = False
+    For i = 1 To numTest
+        retestFlags(i) = IsRetestEnabledForColumn(i)
+        If retestFlags(i) Then
+            hasAnyRetest = True
+        End If
+    Next i
+
+    ' ========================================
     ' データ転記処理
     ' ========================================
     Call TransferData(numTest, lastRow, lastRowData, lastColData)
-    
+
+    ' ========================================
+    ' 追試処理（追試ONの列のみ）
+    ' ========================================
+    If hasAnyRetest Then
+        ' 追試ONの列のデータシート得点を "N" で上書き
+        Call MarkAsRetestPending(numTest, lastRowData, lastColData, retestFlags)
+
+        ' 追試ファイルへの転記（追試ONの列のみ）
+        Call RetestModule.CreateRetestSheet(numTest, lastRow, lastColData, retestFlags)
+    End If
+
     ' ========================================
     ' 入力フォームのクリア
     ' ========================================
@@ -144,7 +169,9 @@ Public Sub Posting()
     Call DataManagementModule.ProtectScoreCells
 
     ' 成功メッセージ
-    Call ErrorHandlerModule.ShowSuccess(MSG_POSTING_SUCCESS)
+    If Not hasAnyRetest Then
+        Call ErrorHandlerModule.ShowSuccess(MSG_POSTING_SUCCESS)
+    End If
 
 CleanExit:
     Call ErrorHandlerModule.EndProcess
@@ -204,13 +231,16 @@ Private Sub TransferData(ByVal numTest As Long, ByVal lastRow As Long, _
                 Sh_data.Cells(eRowData.rowWeight, targetCol) = weightValue
             End If
             
-            ' 統計計算式の設定
+            ' 統計計算式の設定（"N"追試中マーカーと"-"免除を除外）
+            Dim rng As String
+            rng = colLetter & eRowData.rowChildStart & ":" & colLetter & lastRowData
+
             Sh_data.Cells(eRowData.rowAverage, targetCol).Formula = _
-                "=AVERAGE(" & colLetter & eRowData.rowChildStart & ":" & colLetter & lastRowData & ")"
+                "=AVERAGEIFS(" & rng & "," & rng & ",""<>N""," & rng & ",""<>-"")"
             Sh_data.Cells(eRowData.rowMedian, targetCol).Formula = _
-                "=MEDIAN(" & colLetter & eRowData.rowChildStart & ":" & colLetter & lastRowData & ")"
+                "=MEDIAN(" & rng & ")"
             Sh_data.Cells(eRowData.rowStdDev, targetCol).Formula = _
-                "=STDEV.P(" & colLetter & eRowData.rowChildStart & ":" & colLetter & lastRowData & ")"
+                "=STDEV.P(" & rng & ")"
             Sh_data.Cells(eRowData.rowCV, targetCol).Formula = _
                 "=" & colLetter & eRowData.rowStdDev & "/" & colLetter & eRowData.rowAverage
             
@@ -255,9 +285,13 @@ Public Sub ResetInputForm()
         .Range(.Cells(eRowInput.rowChildStart, eColInput.colDataStart), _
                .Cells(lastRow, eColInput.colDataEnd)).ClearContents
     End With
-    
+
+    ' 追試関連のフィールドクリア（行28の追試有無セル）
+    sh_input.Range(sh_input.Cells(ROW_INPUT_RETEST, eColInput.colDataStart), _
+                   sh_input.Cells(ROW_INPUT_RETEST, eColInput.colDataEnd)).ClearContents
+
     Exit Sub
-    
+
 ErrorHandler:
     ' リセット処理のエラーは無視（メイン処理は成功しているため）
     Debug.Print "ResetInputForm Error: " & Err.Description
@@ -312,3 +346,45 @@ Public Function ColumnIndexToLetter(ByVal colIndex As Long) As String
     colAddress = Columns(colIndex).Address
     ColumnIndexToLetter = Split(colAddress, "$")(2)
 End Function
+
+'===============================================================================
+' 指定列番号（1始まり）の追試が有効かどうか判定
+' 引数: testIndex - テスト列インデックス（1～5）
+' 説明: 行28の該当列セルが "あり" なら追試有効と判定
+'===============================================================================
+Public Function IsRetestEnabledForColumn(ByVal testIndex As Long) As Boolean
+    Dim cellValue As String
+    cellValue = Trim(sh_input.Cells(ROW_INPUT_RETEST, eColInput.colDataStart + testIndex - 1).Value & "")
+    IsRetestEnabledForColumn = (cellValue = RETEST_ENABLED_VALUE)
+End Function
+
+'===============================================================================
+' データシートの得点セルを追試中マーカー "N" で上書き
+' 説明：追試ありのテスト登録時、追試ONの列の全児童の得点を "N" に置換する
+'       TransferData で一旦生データを書き込んだ後に呼び出す
+' 引数：
+'   numTest - 今回登録したテスト数（列数）
+'   lastRowData - データシートの児童データ最終行
+'   lastColData - TransferData呼び出し前のデータシート最終列
+'   retestFlags() - 列ごとの追試フラグ（True=追試あり）
+'===============================================================================
+Private Sub MarkAsRetestPending(ByVal numTest As Long, ByVal lastRowData As Long, _
+                                 ByVal lastColData As Long, ByRef retestFlags() As Boolean)
+    Dim i As Long, j As Long
+    Dim targetCol As Long
+
+    With Sh_data
+        For i = 1 To numTest
+            If retestFlags(i) Then
+                targetCol = lastColData + i
+                For j = eRowData.rowChildStart To lastRowData
+                    ' 空欄と "-"（免除）はそのまま残す
+                    If Trim(.Cells(j, targetCol).Value & "") <> "" And _
+                       .Cells(j, targetCol).Value <> "-" Then
+                        .Cells(j, targetCol).Value = RETEST_MARKER
+                    End If
+                Next j
+            End If
+        Next i
+    End With
+End Sub

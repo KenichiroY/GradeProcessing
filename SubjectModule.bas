@@ -70,6 +70,11 @@ Public Sub CollectSubjectData()
         For i = eColData.colDataStart To lastColDatabase
             ' 教科が一致するかチェック
             If CStr(.Cells(eRowData.rowSubject, i).Value) = targetSubject Then
+                ' 追試中チェック（"N" が1つでもあれば除外）
+                If HasRetestMarker(i) Then
+                    GoTo NextColumn
+                End If
+
                 ' 観点が選択されているかチェック
                 If IsPerspectiveSelected(CStr(.Cells(eRowData.rowPerspective, i).Value), perspective) Then
                     ' 配列のサイズを拡張
@@ -87,9 +92,10 @@ Public Sub CollectSubjectData()
                     Next j
                 End If
             End If
+NextColumn:
         Next i
     End With
-    
+
     ' 抽出データがない場合
     If UBound(scoreList, 2) = 0 Then
         Call ErrorHandlerModule.ShowInfo("選択した条件に一致するテストデータがありません。")
@@ -580,3 +586,25 @@ Public Sub ResetWeightNormalizedStatus()
     sh_subject.Range(RNG_SUBJECT_WEIGHT_NORMALIZED).Value = ""
     On Error GoTo 0
 End Sub
+
+'===============================================================================
+' 指定列に追試中マーカー "N" があるか確認
+' 引数：colIndex - データシートの列番号
+' 戻り値：True = "N" が1つ以上ある（追試未完了）
+'===============================================================================
+Private Function HasRetestMarker(ByVal colIndex As Long) As Boolean
+    Dim j As Long
+    Dim childCount As Long
+
+    HasRetestMarker = False
+    childCount = sh_namelist.Range(RNG_NAMELIST_CHILDCOUNT).Value
+
+    With Sh_data
+        For j = eRowData.rowChildStart To eRowData.rowChildStart + childCount - 1
+            If CStr(.Cells(j, colIndex).Value) = RETEST_MARKER Then
+                HasRetestMarker = True
+                Exit Function
+            End If
+        Next j
+    End With
+End Function
