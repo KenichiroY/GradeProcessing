@@ -265,6 +265,11 @@ Public Sub CreateRetestSheet(ByVal numTest As Long, ByVal lastRow As Long, _
             Next j
         End With
 
+        ' 合格者数・未合格者数の数式を設定（合格点入力時に自動計算）
+        Dim initFinalCol As Long
+        initFinalCol = RT_COL_RETEST_START + RT_COL_FINAL_OFFSET
+        Call SetPassFailCountFormulas(ws, initFinalCol, childCount)
+
         ' MENUシートに追加
         Call AddToRetestMenu(wb, testKey, _
             Sh_data.Cells(eRowData.rowSubject, targetCol).Value, _
@@ -319,45 +324,111 @@ Public Sub SetFinalScoreFormula(ByVal ws As Worksheet, ByVal dataRow As Long, _
     lastRetestCol = finalCol - 1
     colLetterRetestEnd = PostingModule.ColumnIndexToLetter(lastRetestCol)
 
+    ' 共通の変数定義
+    Dim origCell As String
+    Dim retestRange As String
+    Dim hasRetest As String
+    origCell = colLetterOrig & dataRow
+    retestRange = colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow
+    hasRetest = "COUNTA(" & retestRange & ")>0"
+
     Select Case method
+        Case RT_METHOD_PASS_SCORE
+            ' 合格点方式：
+            '   本試 >= 合格点 → 本試の得点
+            '   MAX(追試) >= 合格点 → 合格点
+            '   それ以外 → MAX(本試, 追試全て)
+            paramValue = ws.Range(RNG_RT_PASS_SCORE).Value
+            formula = "=IF(" & origCell & "=""-"",""-""," & _
+                      "IF(" & origCell & ">=" & paramValue & "," & origCell & "," & _
+                      "IF(AND(" & hasRetest & ",MAX(" & retestRange & ")>=" & paramValue & ")," & _
+                      paramValue & "," & _
+                      "IF(" & hasRetest & "," & _
+                      "MAX(" & origCell & "," & retestRange & ")," & _
+                      origCell & "))))"
+
         Case RT_METHOD_MAX
-            ' MAX(本試, 追試1, 追試2, ...)
-            formula = "=IF(" & colLetterOrig & dataRow & "=""-"",""-""," & _
-                      "IF(COUNTA(" & colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow & ")=0," & _
-                      colLetterOrig & dataRow & "," & _
-                      "MAX(" & colLetterOrig & dataRow & "," & _
-                      colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow & ")))"
+            ' 最大値：MAX(本試, 追試1, 追試2, ...)
+            formula = "=IF(" & origCell & "=""-"",""-""," & _
+                      "IF(" & hasRetest & "," & _
+                      "MAX(" & origCell & "," & retestRange & ")," & _
+                      origCell & "))"
+
+        Case RT_METHOD_AVERAGE
+            ' 平均値：本試と追試全ての平均
+            formula = "=IF(" & origCell & "=""-"",""-""," & _
+                      "IF(" & hasRetest & "," & _
+                      "ROUND(AVERAGE(" & origCell & "," & retestRange & "),1)," & _
+                      origCell & "))"
+
+        Case RT_METHOD_MEDIAN
+            ' 中央値：本試と追試全ての中央値
+            formula = "=IF(" & origCell & "=""-"",""-""," & _
+                      "IF(" & hasRetest & "," & _
+                      "MEDIAN(" & origCell & "," & retestRange & ")," & _
+                      origCell & "))"
 
         Case RT_METHOD_INTERPOLATION
-            ' α × MAX(全回) + (1-α) × 本試
+            ' 内分点：α × MAX(本試,追試) + (1-α) × 本試
             paramValue = ws.Range(RNG_RT_PARAM).Value
-            formula = "=IF(" & colLetterOrig & dataRow & "=""-"",""-""," & _
-                      "IF(COUNTA(" & colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow & ")=0," & _
-                      colLetterOrig & dataRow & "," & _
-                      "ROUND(" & paramValue & "*MAX(" & colLetterOrig & dataRow & "," & _
-                      colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow & ")+" & _
-                      (1 - paramValue) & "*" & colLetterOrig & dataRow & ",1)))"
+            formula = "=IF(" & origCell & "=""-"",""-""," & _
+                      "IF(" & hasRetest & "," & _
+                      "ROUND(" & paramValue & "*MAX(" & origCell & "," & retestRange & ")+" & _
+                      (1 - paramValue) & "*" & origCell & ",1)," & _
+                      origCell & "))"
 
-        Case RT_METHOD_CAPPED
-            ' MAX(本試, MIN(MAX(追試1,追試2,...), 上限点))
-            paramValue = ws.Range(RNG_RT_PARAM).Value
-            formula = "=IF(" & colLetterOrig & dataRow & "=""-"",""-""," & _
-                      "IF(COUNTA(" & colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow & ")=0," & _
-                      colLetterOrig & dataRow & "," & _
-                      "MAX(" & colLetterOrig & dataRow & "," & _
-                      "MIN(MAX(" & colLetterRetestStart & dataRow & ":" & _
-                      colLetterRetestEnd & dataRow & ")," & paramValue & "))))"
+        Case RT_METHOD_ORIGINAL_ONLY
+            ' 本試のみ：追試結果を無視
+            formula = "=IF(" & origCell & "=""-"",""-""," & _
+                      origCell & ")"
 
         Case Else
-            ' デフォルト：最大値
-            formula = "=IF(" & colLetterOrig & dataRow & "=""-"",""-""," & _
-                      "IF(COUNTA(" & colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow & ")=0," & _
-                      colLetterOrig & dataRow & "," & _
-                      "MAX(" & colLetterOrig & dataRow & "," & _
-                      colLetterRetestStart & dataRow & ":" & colLetterRetestEnd & dataRow & ")))"
+            ' デフォルト：本試のみ
+            formula = "=IF(" & origCell & "=""-"",""-""," & _
+                      origCell & ")"
     End Select
 
     ws.Cells(dataRow, finalCol).formula = formula
+End Sub
+
+'===============================================================================
+' 合格者数・未合格者数の数式を設定
+' 引数：
+'   ws - 追試シート
+'   finalCol - 最終列の列番号
+'   childCount - 児童数
+' 説明：
+'   合格点（E4）が入力されている場合のみ、H3/H4に数式を設定する
+'   合格点が空の場合はH3/H4をクリアする
+'===============================================================================
+Private Sub SetPassFailCountFormulas(ByVal ws As Worksheet, ByVal finalCol As Long, _
+                                     ByVal childCount As Long)
+    Dim passScore As Variant
+    passScore = ws.Range(RNG_RT_PASS_SCORE).Value
+
+    ' 合格点が未設定の場合はクリア
+    If Trim(passScore & "") = "" Or Not IsNumeric(passScore) Then
+        ws.Range("H3").Value = ""
+        ws.Range("H4").Value = ""
+        Exit Sub
+    End If
+
+    Dim colLetterFinal As String
+    Dim lastDataRow As Long
+    colLetterFinal = PostingModule.ColumnIndexToLetter(finalCol)
+    lastDataRow = RT_DATA_START_ROW + childCount - 1
+
+    Dim finalRange As String
+    finalRange = colLetterFinal & RT_DATA_START_ROW & ":" & colLetterFinal & lastDataRow
+
+    ' H3: 合格者数 = 最終列で合格点以上の数値セル数
+    ' COUNTIF(範囲, ">="&E4) で合格点セルを参照し、合格点変更に自動追従
+    ws.Range("H3").formula = "=IF(" & RNG_RT_PASS_SCORE & "="""",""""," & _
+        "COUNTIF(" & finalRange & ","">=""&" & RNG_RT_PASS_SCORE & "))"
+
+    ' H4: 未合格者数 = 最終列で合格点未満の数値セル数（"-"は数値でないため自動除外）
+    ws.Range("H4").formula = "=IF(" & RNG_RT_PASS_SCORE & "="""",""""," & _
+        "COUNTIF(" & finalRange & ",""<""&" & RNG_RT_PASS_SCORE & "))"
 End Sub
 
 '===============================================================================
@@ -423,6 +494,9 @@ Public Sub AddRetestRound(ByVal ws As Worksheet)
                                   RT_COL_ORIGINAL, RT_COL_RETEST_START, finalCol, method)
     Next i
 
+    ' 合格者数・未合格者数の数式を更新（最終列がずれたため）
+    Call SetPassFailCountFormulas(ws, finalCol, childCount)
+
     Call ErrorHandlerModule.ShowSuccess("追試" & retestNum & " の列を追加しました。")
 
     Exit Sub
@@ -469,47 +543,47 @@ Public Sub CompleteRetest(ByVal ws As Worksheet)
     If method = "" Then
         Call ErrorHandlerModule.ShowValidationError( _
             "算出方法が設定されていません。" & vbCrLf & _
-            "セル " & RNG_RT_METHOD & " で算出方法を選択してください。" & vbCrLf & _
-            "（「最大値」「内分点」「追試上限付き」のいずれか）")
+            "セル " & RNG_RT_METHOD & " で算出方法を選択してください。")
         GoTo CleanExit
     End If
 
     ' 有効な算出方法かチェック
-    If method <> RT_METHOD_MAX And _
-       method <> RT_METHOD_INTERPOLATION And _
-       method <> RT_METHOD_CAPPED Then
+    If Not IsValidRetestMethod(method) Then
         Call ErrorHandlerModule.ShowValidationError( _
             "算出方法「" & method & "」は無効です。" & vbCrLf & _
-            "「最大値」「内分点」「追試上限付き」から選択してください。")
+            "「最終得点計算」ボタンから算出方法を設定してください。")
         GoTo CleanExit
     End If
 
-    ' 内分点・追試上限付きの場合、パラメータチェック
+    ' 内分点の場合、α値チェック
     Dim paramVal As Variant
-    paramVal = ws.Range(RNG_RT_PARAM).Value
     If method = RT_METHOD_INTERPOLATION Then
+        paramVal = ws.Range(RNG_RT_PARAM).Value
         If Trim(paramVal & "") = "" Or Not IsNumeric(paramVal) Then
             Call ErrorHandlerModule.ShowValidationError( _
-                "内分点方式ではパラメータ（α値：0～1）が必要です。" & vbCrLf & _
-                "セル " & RNG_RT_PARAM & " に数値を入力してください。")
+                "内分点方式ではα値（0～1）が必要です。" & vbCrLf & _
+                "「最終得点計算」ボタンから再設定してください。")
             GoTo CleanExit
         End If
         If CDbl(paramVal) < 0 Or CDbl(paramVal) > 1 Then
             Call ErrorHandlerModule.ShowValidationError( _
-                "内分点のα値は0～1の範囲で入力してください。" & vbCrLf & _
-                "（1に近いほど最大値寄り、0に近いほど本試寄り）")
+                "α値は0～1の範囲で入力してください。" & vbCrLf & _
+                "「最終得点計算」ボタンから再設定してください。")
             GoTo CleanExit
         End If
-    ElseIf method = RT_METHOD_CAPPED Then
+    End If
+
+    ' 合格点方式の場合、合格点チェック
+    If method = RT_METHOD_PASS_SCORE Then
+        paramVal = ws.Range(RNG_RT_PASS_SCORE).Value
         If Trim(paramVal & "") = "" Or Not IsNumeric(paramVal) Then
             Call ErrorHandlerModule.ShowValidationError( _
-                "追試上限付き方式ではパラメータ（上限点）が必要です。" & vbCrLf & _
-                "セル " & RNG_RT_PARAM & " に数値を入力してください。")
+                "合格点方式では合格点（セル " & RNG_RT_PASS_SCORE & "）が必要です。")
             GoTo CleanExit
         End If
         If CDbl(paramVal) <= 0 Then
             Call ErrorHandlerModule.ShowValidationError( _
-                "上限点は0より大きい値を入力してください。")
+                "合格点は0より大きい値を入力してください。")
             GoTo CleanExit
         End If
     End If
@@ -993,40 +1067,21 @@ Public Sub ApplyFinalScoreFormulas(ByVal ws As Worksheet)
     Dim i As Long
     Dim col As Long
 
-    ' 算出方法の確認
+    ' 算出方法の確認（フォーム経由で設定済みのはずだが念のためチェック）
     method = Trim(ws.Range(RNG_RT_METHOD).Value & "")
     If method = "" Then
         Call ErrorHandlerModule.ShowValidationError( _
             "算出方法が設定されていません。" & vbCrLf & _
-            "セル " & RNG_RT_METHOD & " で算出方法を選択してください。")
+            "「最終得点計算」ボタンから算出方法を設定してください。")
         Exit Sub
     End If
 
     ' 有効な算出方法かチェック
-    If method <> RT_METHOD_MAX And _
-       method <> RT_METHOD_INTERPOLATION And _
-       method <> RT_METHOD_CAPPED Then
+    If Not IsValidRetestMethod(method) Then
         Call ErrorHandlerModule.ShowValidationError( _
             "算出方法「" & method & "」は無効です。" & vbCrLf & _
-            "「最大値」「内分点」「追試上限付き」から選択してください。")
+            "「最終得点計算」ボタンから算出方法を設定してください。")
         Exit Sub
-    End If
-
-    ' パラメータチェック（内分点・追試上限付きの場合）
-    Dim paramVal As Variant
-    paramVal = ws.Range(RNG_RT_PARAM).Value
-    If method = RT_METHOD_INTERPOLATION Then
-        If Trim(paramVal & "") = "" Or Not IsNumeric(paramVal) Then
-            Call ErrorHandlerModule.ShowValidationError( _
-                "内分点方式ではパラメータ（α値：0～1）が必要です。")
-            Exit Sub
-        End If
-    ElseIf method = RT_METHOD_CAPPED Then
-        If Trim(paramVal & "") = "" Or Not IsNumeric(paramVal) Then
-            Call ErrorHandlerModule.ShowValidationError( _
-                "追試上限付き方式ではパラメータ（上限点）が必要です。")
-            Exit Sub
-        End If
     End If
 
     ' 最終列を検索
@@ -1057,6 +1112,9 @@ Public Sub ApplyFinalScoreFormulas(ByVal ws As Worksheet)
                                   RT_COL_ORIGINAL, RT_COL_RETEST_START, finalCol, method)
     Next i
 
+    ' 合格者数・未合格者数の数式を更新
+    Call SetPassFailCountFormulas(ws, finalCol, childCount)
+
     Call ErrorHandlerModule.ShowSuccess("最終得点の数式を設定しました。（算出方法: " & method & "）")
 
     Exit Sub
@@ -1068,8 +1126,9 @@ ErrorHandler:
 End Sub
 
 '===============================================================================
-' 最終得点の数式適用（UI経由 - アクティブシートに適用）
-' 説明：追試ファイルのシートで算出方法設定後にボタンから実行する
+' 最終得点の数式適用（UI経由 - フォームで算出方法を選択してから適用）
+' 説明：追試シートの「最終得点計算」ボタンから呼び出す
+'       frm_retest_setting フォームを表示し、決定後に数式を適用する
 '===============================================================================
 Public Sub ApplyFinalScoreFormulasUI()
     On Error GoTo ErrorHandler
@@ -1096,6 +1155,20 @@ Public Sub ApplyFinalScoreFormulasUI()
         Exit Sub
     End If
 
+    ' フォームを表示して算出方法を選択させる
+    Dim frm As frm_retest_setting
+    Set frm = New frm_retest_setting
+    frm.Show
+
+    ' キャンセルされた場合は何もしない
+    If frm.Cancelled Then
+        Unload frm
+        Exit Sub
+    End If
+
+    Unload frm
+
+    ' フォームで設定された算出方法に基づいて数式を適用
     Call ApplyFinalScoreFormulas(ws)
 
     Exit Sub
@@ -1105,3 +1178,18 @@ ErrorHandler:
     errInfo = ErrorHandlerModule.CreateErrorInfo("RetestModule", "ApplyFinalScoreFormulasUI")
     Call ErrorHandlerModule.ShowError(errInfo)
 End Sub
+
+'===============================================================================
+' 有効な算出方法かどうかを判定
+' 引数：method - 算出方法の文字列
+' 戻り値：True=有効、False=無効
+'===============================================================================
+Private Function IsValidRetestMethod(ByVal method As String) As Boolean
+    Select Case method
+        Case RT_METHOD_PASS_SCORE, RT_METHOD_MAX, RT_METHOD_AVERAGE, _
+             RT_METHOD_MEDIAN, RT_METHOD_INTERPOLATION, RT_METHOD_ORIGINAL_ONLY
+            IsValidRetestMethod = True
+        Case Else
+            IsValidRetestMethod = False
+    End Select
+End Function

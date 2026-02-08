@@ -21,6 +21,8 @@
 | Result | sh_result | 評価結果の保存 | 8行目:教科名, 9行目:観点, 10行目:ラベル, 11行目～:児童データ |
 | IndividualAnalysis | sh_individual | 個人分析（将来実装予定） | - |
 | Setting | sh_setting | 教科・観点・ABC閾値の設定 | B列:教科, D列:観点, H-I列:ABC閾値 |
+| RT_MENU（テンプレート） | sh_rt_menu_template | 追試ファイルMENUのテンプレート（VeryHidden） | - |
+| RT_TEMPLATE（テンプレート） | sh_rt_template | 追試シートのテンプレート（VeryHidden） | - |
 
 ## VBAモジュール構成
 
@@ -38,6 +40,7 @@
 | ErrorHandlerModule | エラーハンドリング共通機能 | `ShowError`, `ShowValidationError`, `BeginProcess`, `EndProcess` |
 | ScoreCalculationModule | 得点調整・変換計算（英語版） | `CalculateAdjustedAllocateScore`, `CalculateAdjustedScore` |
 | ResultModule | Result転記・スナップショット保存 | `GenerateResultHeaders`, `TransferToResult`, `SaveSubjectSnapshot`, `FinalizeEvaluation`, `HasResultData`, `DeleteAllControls` |
+| RetestModule | 追試機能（ファイル生成・シート作成・結果反映） | `CreateRetestSheet`, `AddRetestRound(UI)`, `CompleteRetest(UI)`, `ApplyFinalScoreFormulas(UI)`, `OpenRetestFile`, `RefreshRetestMenu` |
 
 ### シートモジュール
 
@@ -54,6 +57,7 @@
 | フォーム | 用途 | 主要コントロール |
 |----------|------|------------------|
 | frmScoreEdit | 得点修正ダイアログ | `lblSubject`, `lblPerspective`, `lblTestname`, `lblChildName`, `lblAllocateScore`, `lblCurrentScore`, `txtNewScore`, `lblHint`, `btnUpdate`, `btnCancel`, `btn_Exempt` |
+| frm_retest_setting | 追試計算方法設定ダイアログ | `opbtn1`～`opbtn6`（ラジオボタン: 合格点/最大値/平均値/中央値/内分点/本試のみ）, `txtbox`（α値入力）, `btn_ok`, `btn_cancel` |
 
 ## 主要機能
 
@@ -120,6 +124,21 @@
   - シート保護（パスワードなし）で誤変更を防止
 - **列見出し自動生成**: Workbook_Open時にSettingシートから見出しを生成（既存データがない場合のみ）
 
+### 10. 追試機能 (RetestModule)
+- **追試ファイル生成**: テスト登録時に追試フラグ（行28に"あり"）がある列について、別ファイル（`成績処理_追試.xlsm`）に追試シートを自動生成
+- **テンプレート方式**: 本体ファイルのVeryHiddenシート（`sh_rt_menu_template`, `sh_rt_template`）をCodeNameで検索・コピーして追試シートを作成
+- **追試回の追加**: 最終列の手前に列を挿入して追試回を追加（追試2, 追試3, ...）
+- **算出方法**: frm_retest_settingフォームで選択、6方式対応
+  - **合格点**: 本試≧合格点→本試得点、追試で合格→合格点、それ以外→最高点
+  - **最大値**: MAX(本試, 追試1, 追試2, ...)
+  - **平均値**: AVERAGE(本試, 追試全て)
+  - **中央値**: MEDIAN(本試, 追試全て)
+  - **内分点**: α × MAX(全回) + (1-α) × 本試（α値: 0～1）
+  - **本試のみ**: 追試結果を無視し本試の得点をそのまま使用
+- **合格者数・未合格者数**: 合格点(E4)が入力されている場合、最終列の得点から自動集計（H3/H4）
+- **結果反映**: 追試完了で最終得点を本体ファイルのデータシートに反映（"N"マーカーを上書き）
+- **ボタン**: 追試ファイルのボタンは`'本体ファイル名'!RetestModule.XXX`形式で本体マクロを呼び出す
+
 ## 重要な定数・列挙型
 
 ```vba
@@ -170,6 +189,37 @@ RESULT_PERSPECTIVE_ROW = 9               ' 観点行
 RESULT_LABEL_ROW = 10                    ' ラベル行（達成率/ABC）
 RESULT_DATA_START_ROW = 11               ' 児童データ開始行
 RESULT_DATA_START_COL = 4                ' データ開始列（D列）
+
+' 追試シート定数
+ROW_INPUT_RETEST = 28                    ' 入力シートの追試有無行
+RETEST_ENABLED_VALUE = "あり"            ' 追試有効の判定値
+
+' 追試シートのセル位置（A-B列: テスト情報、D-E列: 算出設定）
+RNG_RT_PARENT_KEY = "B3"                 ' 追試元キー
+RNG_RT_SUBJECT = "B4"                    ' 教科
+RNG_RT_TEST_NAME = "B5"                  ' テスト名
+RNG_RT_PERSPECTIVE = "B6"                ' 観点
+RNG_RT_DETAIL = "B7"                     ' 詳細
+RNG_RT_ALLOCATE = "E3"                   ' 配点
+RNG_RT_PASS_SCORE = "E4"                 ' 合格点（空欄可）
+RNG_RT_METHOD = "E5"                     ' 算出方法
+RNG_RT_PARAM = "E6"                      ' 内分比α値
+RNG_RT_STATUS = "E7"                     ' 状態
+
+' 追試シートのデータ領域
+RT_HEADER_ROW = 10                       ' ヘッダー行
+RT_DATA_START_ROW = 11                   ' 児童データ開始行
+RT_COL_CODE = 1                          ' A列：コード
+RT_COL_ORIGINAL = 4                      ' D列：本試
+RT_COL_RETEST_START = 5                  ' E列～：追試1, 追試2, ...
+
+' 算出方法の選択肢
+RT_METHOD_PASS_SCORE = "合格点"
+RT_METHOD_MAX = "最大値"
+RT_METHOD_AVERAGE = "平均値"
+RT_METHOD_MEDIAN = "中央値"
+RT_METHOD_INTERPOLATION = "内分点"
+RT_METHOD_ORIGINAL_ONLY = "本試のみ"
 ```
 
 ## データ構造
