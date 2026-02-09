@@ -73,6 +73,9 @@ Public Sub SearchNotYetInput()
         Next i
     End With
 
+    ' MENUシートのデータエリア書式を適用
+    Call UIFormatModule.FormatMenuDataArea
+
     ' MENUシートをアクティブにして先頭セルを選択
     sh_MENU.Activate
     sh_MENU.Cells(eRowMenu.rowStart, eColMenu.colCode).Select
@@ -248,6 +251,9 @@ Public Sub SearchNotYetByTest(ByVal testKey As String)
         Next j
     End With
 
+    ' MENUシートのデータエリア書式を適用
+    Call UIFormatModule.FormatMenuDataArea
+
     ' 結果メッセージ
     If notYetCount = 0 Then
         Call ErrorHandlerModule.ShowSuccess("テスト「" & testKey & "」に未入力はありません。")
@@ -299,8 +305,13 @@ Private Sub ClearMenuData()
         If lastRow >= eRowMenu.rowStart Then
             ' 余裕を持って少し多めにクリア
             clearEndRow = lastRow + 10
-            .Range(.Cells(eRowMenu.rowStart, eColMenu.colCode), _
-                   .Cells(clearEndRow, eColMenu.colToCol)).ClearContents
+            Dim clearRange As Range
+            Set clearRange = .Range(.Cells(eRowMenu.rowStart, eColMenu.colCode), _
+                                     .Cells(clearEndRow, eColMenu.colToCol))
+            clearRange.ClearContents
+            ' 書式もクリア（罫線・背景色）
+            clearRange.Interior.ColorIndex = xlColorIndexNone
+            clearRange.Borders.LineStyle = xlLineStyleNone
         End If
     End With
 End Sub

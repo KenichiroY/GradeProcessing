@@ -41,6 +41,7 @@
 | ScoreCalculationModule | 得点調整・変換計算（英語版） | `CalculateAdjustedAllocateScore`, `CalculateAdjustedScore` |
 | ResultModule | Result転記・スナップショット保存 | `GenerateResultHeaders`, `TransferToResult`, `SaveSubjectSnapshot`, `FinalizeEvaluation`, `HasResultData`, `DeleteAllControls` |
 | RetestModule | 追試機能（ファイル生成・シート作成・結果反映） | `CreateRetestSheet`, `AddRetestRound(UI)`, `CompleteRetest(UI)`, `ApplyFinalScoreFormulas(UI)`, `OpenRetestFile`, `RefreshRetestMenu` |
+| UIFormatModule | UI書式一括設定（手動実行） | `ApplyAllSheetFormats`, `FormatMenuSheet`, `FormatMenuDataArea`, `FormatNamelistSheet`, `FormatDataSheet`, `FormatSubjectSheet`, `FormatRetestTemplateSheet`, `SetSheetTabColors` |
 
 ### シートモジュール
 
