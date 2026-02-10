@@ -166,16 +166,16 @@ Private Sub WriteToSubjectSheet(ByRef subjectInfo() As Variant, ByRef scoreList(
                 
                 ' 統計値の数式
                 .Cells(eRowSubject.rowAverage, lastColSubject).Formula = _
-                    "=AVERAGE(" & colLetter & eRowSubject.rowChildStart & ":" & _
-                    colLetter & (eRowSubject.rowChildStart + childCount - 1) & ")"
+                    "=IFERROR(AVERAGE(" & colLetter & eRowSubject.rowChildStart & ":" & _
+                    colLetter & (eRowSubject.rowChildStart + childCount - 1) & "),"""")"
                 .Cells(eRowSubject.rowMedian, lastColSubject).Formula = _
-                    "=MEDIAN(" & colLetter & eRowSubject.rowChildStart & ":" & _
-                    colLetter & (eRowSubject.rowChildStart + childCount - 1) & ")"
+                    "=IFERROR(MEDIAN(" & colLetter & eRowSubject.rowChildStart & ":" & _
+                    colLetter & (eRowSubject.rowChildStart + childCount - 1) & "),"""")"
                 .Cells(eRowSubject.rowStdDev, lastColSubject).Formula = _
-                    "=STDEV.P(" & colLetter & eRowSubject.rowChildStart & ":" & _
-                    colLetter & (eRowSubject.rowChildStart + childCount - 1) & ")"
+                    "=IFERROR(STDEV.P(" & colLetter & eRowSubject.rowChildStart & ":" & _
+                    colLetter & (eRowSubject.rowChildStart + childCount - 1) & "),"""")"
                 .Cells(eRowSubject.rowCV, lastColSubject).Formula = _
-                    "=" & colLetter & eRowSubject.rowStdDev & "/" & colLetter & eRowSubject.rowAverage
+                    "=IFERROR(" & colLetter & eRowSubject.rowStdDev & "/" & colLetter & eRowSubject.rowAverage & ","""")"
                 
                 ' 得点データの転記
                 For j = 1 To childCount

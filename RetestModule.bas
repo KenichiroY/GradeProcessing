@@ -1193,3 +1193,175 @@ Private Function IsValidRetestMethod(ByVal method As String) As Boolean
             IsValidRetestMethod = False
     End Select
 End Function
+
+'===============================================================================
+' 後出し追試: データシートから追試シートを作成
+' 説明：テスト登録後に追試を設定する場合に使用。
+'       既存のCreateRetestSheetはPosting時（sh_inputから得点取得）に使用するが、
+'       この関数はSh_dataから本試得点を取得して追試シートを作成する。
+' 引数：targetCol - データシートの対象列番号
+'===============================================================================
+Public Sub CreateRetestSheetFromData(ByVal targetCol As Long)
+    On Error GoTo ErrorHandler
+
+    Call ErrorHandlerModule.BeginProcess
+
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim j As Long
+    Dim childCount As Long
+    Dim testKey As String
+    Dim sheetName As String
+
+    ' テスト情報の取得
+    testKey = Sh_data.Cells(eRowData.rowKey, targetCol).Value
+
+    ' 追試ファイルを取得/作成
+    Set wb = GetOrCreateRetestWorkbook()
+    If wb Is Nothing Then
+        Call ErrorHandlerModule.ShowValidationError("追試ファイルの作成に失敗しました。")
+        GoTo CleanExit
+    End If
+
+    childCount = sh_namelist.Range(RNG_NAMELIST_CHILDCOUNT).Value
+
+    ' シート名の生成（キー_テスト名_観点、31文字制限）
+    sheetName = testKey & "_" & _
+                Sh_data.Cells(eRowData.rowTestName, targetCol).Value & "_" & _
+                Sh_data.Cells(eRowData.rowPerspective, targetCol).Value
+    If Len(sheetName) > 31 Then
+        sheetName = Left(sheetName, 31)
+    End If
+    sheetName = GetUniqueSheetName(wb, sheetName)
+
+    ' テンプレートからシートをコピー
+    Set ws = CopyTemplateSheet("sh_rt_template", wb, sheetName)
+
+    ' ボタンのマクロ参照先を本体ファイルに書き換え
+    Call AssignButtonMacros(ws)
+
+    ' テスト情報の書き込み
+    With ws
+        .Range(RNG_RT_PARENT_KEY).Value = testKey
+        .Range(RNG_RT_SUBJECT).Value = Sh_data.Cells(eRowData.rowSubject, targetCol).Value
+        .Range(RNG_RT_TEST_NAME).Value = Sh_data.Cells(eRowData.rowTestName, targetCol).Value
+        .Range(RNG_RT_PERSPECTIVE).Value = Sh_data.Cells(eRowData.rowPerspective, targetCol).Value
+        .Range(RNG_RT_DETAIL).Value = Sh_data.Cells(eRowData.rowDetail, targetCol).Value
+        .Range(RNG_RT_ALLOCATE).Value = Sh_data.Cells(eRowData.rowAllocationScore, targetCol).Value
+
+        ' 児童データの転記（本試の得点はSh_dataから取得）
+        For j = 1 To childCount
+            .Cells(RT_DATA_START_ROW + j - 1, RT_COL_CODE).Value = _
+                Sh_data.Cells(eRowData.rowChildStart + j - 1, eColData.colCode).Value
+            .Cells(RT_DATA_START_ROW + j - 1, RT_COL_LASTNAME).Value = _
+                Sh_data.Cells(eRowData.rowChildStart + j - 1, eColData.colLastName).Value
+            .Cells(RT_DATA_START_ROW + j - 1, RT_COL_FIRSTNAME).Value = _
+                Sh_data.Cells(eRowData.rowChildStart + j - 1, eColData.colFirstName).Value
+
+            ' 本試の得点（Sh_dataから取得）
+            .Cells(RT_DATA_START_ROW + j - 1, RT_COL_ORIGINAL).Value = _
+                Sh_data.Cells(eRowData.rowChildStart + j - 1, targetCol).Value
+        Next j
+    End With
+
+    ' 合格者数・未合格者数の数式を設定
+    Dim initFinalCol As Long
+    initFinalCol = RT_COL_RETEST_START + RT_COL_FINAL_OFFSET
+    Call SetPassFailCountFormulas(ws, initFinalCol, childCount)
+
+    ' MENUシートに追加
+    Call AddToRetestMenu(wb, testKey, _
+        Sh_data.Cells(eRowData.rowSubject, targetCol).Value, _
+        Sh_data.Cells(eRowData.rowTestName, targetCol).Value, _
+        Sh_data.Cells(eRowData.rowPerspective, targetCol).Value, _
+        sheetName)
+
+    ' データシートの得点を"N"マーカーに置換
+    Call MarkColumnAsRetestPending(targetCol, childCount)
+
+    wb.Save
+
+CleanExit:
+    Call ErrorHandlerModule.EndProcess
+    Exit Sub
+
+ErrorHandler:
+    Call ErrorHandlerModule.CleanupOnError
+    Dim errInfo As ErrorInfo
+    errInfo = ErrorHandlerModule.CreateErrorInfo("RetestModule", "CreateRetestSheetFromData")
+    Call ErrorHandlerModule.ShowError(errInfo)
+End Sub
+
+'===============================================================================
+' 後出し追試: 単一列の得点を追試中マーカー"N"に置換
+' 説明：後出し追試時に、データシートの対象列の児童得点を"N"に置換する。
+'       空欄と"-"（免除）はそのまま残す。
+' 引数：
+'   targetCol  - データシートの対象列番号
+'   childCount - 児童数
+'===============================================================================
+Private Sub MarkColumnAsRetestPending(ByVal targetCol As Long, ByVal childCount As Long)
+    Dim j As Long
+
+    ' シート保護を一時解除
+    On Error Resume Next
+    Sh_data.Unprotect
+    On Error GoTo 0
+
+    With Sh_data
+        For j = eRowData.rowChildStart To eRowData.rowChildStart + childCount - 1
+            Dim cellVal As String
+            cellVal = Trim(.Cells(j, targetCol).Value & "")
+            If cellVal <> "" And cellVal <> "-" Then
+                .Cells(j, targetCol).Value = RETEST_MARKER
+            End If
+        Next j
+    End With
+
+    ' シート再保護
+    Call DataManagementModule.ProtectScoreCells
+End Sub
+
+'===============================================================================
+' 追試ファイル内で指定キーの追試シートが存在するか確認
+' 説明：frmTestEditから呼ばれる。追試ファイルを開き、指定テストキーの
+'       追試シートが既に存在するかを判定する。
+' 引数：testKey - テストキー
+' 戻り値：True=存在する、False=存在しない
+'===============================================================================
+Public Function HasRetestSheetForKey(ByVal testKey As String) As Boolean
+    HasRetestSheetForKey = False
+
+    Dim retestWb As Workbook
+    Set retestWb = GetOrCreateRetestWorkbook()
+    If retestWb Is Nothing Then Exit Function
+
+    Dim ws As Worksheet
+    Set ws = FindRetestSheetByKey(retestWb, testKey)
+    HasRetestSheetForKey = Not (ws Is Nothing)
+End Function
+
+'===============================================================================
+' 追試ファイル内で指定キーの追試シートを検索
+' 説明：追試ファイル内の全シートをループし、RNG_RT_PARENT_KEY（B3セル）が
+'       指定テストキーと一致するシートを返す。
+' 引数：wb - 追試ファイルのWorkbook、testKey - テストキー
+' 戻り値：見つかったWorksheet、見つからなければNothing
+'===============================================================================
+Private Function FindRetestSheetByKey(ByVal wb As Workbook, ByVal testKey As String) As Worksheet
+    Dim ws As Worksheet
+    Set FindRetestSheetByKey = Nothing
+
+    For Each ws In wb.Worksheets
+        If ws.Name <> "MENU" Then
+            On Error Resume Next
+            Dim parentKey As String
+            parentKey = ws.Range(RNG_RT_PARENT_KEY).Value & ""
+            On Error GoTo 0
+            If parentKey = testKey Then
+                Set FindRetestSheetByKey = ws
+                Exit Function
+            End If
+        End If
+    Next ws
+End Function

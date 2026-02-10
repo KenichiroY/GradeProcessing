@@ -183,6 +183,7 @@ Public Const SETTING_SUBJECT_COL As Long = 2
 Public Const SETTING_KEY_CHAR_COL As Long = 1
 Public Const SETTING_KEY_COUNT_COL As Long = 3
 Public Const SETTING_PERSPECTIVE_COL As Long = 4
+Public Const SETTING_CATEGORY_COL As Long = 7
 Public Const SETTING_AB_THRESHOLD_COL As Long = 8
 Public Const SETTING_BC_THRESHOLD_COL As Long = 9
 

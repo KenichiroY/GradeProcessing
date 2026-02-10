@@ -20,7 +20,7 @@
 | Subject | sh_subject | 教科別集計・ABC評価 | B2:教科名, B4:得点調整有効/無効, B6:重み正規化状態 |
 | Result | sh_result | 評価結果の保存 | 8行目:教科名, 9行目:観点, 10行目:ラベル, 11行目～:児童データ |
 | IndividualAnalysis | sh_individual | 個人分析（将来実装予定） | - |
-| Setting | sh_setting | 教科・観点・ABC閾値の設定 | B列:教科, D列:観点, H-I列:ABC閾値 |
+| Setting | sh_setting | 教科・観点・カテゴリ・ABC閾値の設定 | A列:教科文字, B列:教科, C列:キー最終値, D列:観点, E列:学期, G列:カテゴリ, H-I列:ABC閾値 |
 | RT_MENU（テンプレート） | sh_rt_menu_template | 追試ファイルMENUのテンプレート（VeryHidden） | - |
 | RT_TEMPLATE（テンプレート） | sh_rt_template | 追試シートのテンプレート（VeryHidden） | - |
 
@@ -40,7 +40,7 @@
 | ErrorHandlerModule | エラーハンドリング共通機能 | `ShowError`, `ShowValidationError`, `BeginProcess`, `EndProcess` |
 | ScoreCalculationModule | 得点調整・変換計算（英語版） | `CalculateAdjustedAllocateScore`, `CalculateAdjustedScore` |
 | ResultModule | Result転記・スナップショット保存 | `GenerateResultHeaders`, `TransferToResult`, `SaveSubjectSnapshot`, `FinalizeEvaluation`, `HasResultData`, `DeleteAllControls` |
-| RetestModule | 追試機能（ファイル生成・シート作成・結果反映） | `CreateRetestSheet`, `AddRetestRound(UI)`, `CompleteRetest(UI)`, `ApplyFinalScoreFormulas(UI)`, `OpenRetestFile`, `RefreshRetestMenu` |
+| RetestModule | 追試機能（ファイル生成・シート作成・結果反映） | `CreateRetestSheet`, `CreateRetestSheetFromData`, `HasRetestSheetForKey`, `AddRetestRound(UI)`, `CompleteRetest(UI)`, `ApplyFinalScoreFormulas(UI)`, `OpenRetestFile`, `RefreshRetestMenu` |
 | UIFormatModule | UI書式一括設定（手動実行） | `ApplyAllSheetFormats`, `FormatMenuSheet`, `FormatMenuDataArea`, `FormatNamelistSheet`, `FormatDataSheet`, `FormatSubjectSheet`, `FormatRetestTemplateSheet`, `SetSheetTabColors` |
 
 ### シートモジュール
@@ -48,7 +48,7 @@
 | モジュール | 用途 | 主要イベント/プロシージャ |
 |------------|------|--------------------------|
 | ThisWorkbook | ワークブック開閉時の初期化 | `Workbook_Open` → 日付初期化、チェックボックス初期化、データシート保護 |
-| Sh_data | データシートのイベント処理 | `Worksheet_BeforeDoubleClick` → 得点修正フォーム表示 |
+| Sh_data | データシートのイベント処理 | `Worksheet_BeforeDoubleClick` → 得点セル: frmScoreEdit / ヘッダー行: frmTestEdit |
 | sh_input | 入力シートのUI制御 | `Cb_clipping`, `Cb_convertScore`, `Cb_adjustScore`, `ClearInputForm` |
 | sh_namelist | 名簿シートのボタンイベント | （ボタン割り当て用） |
 | sh_subject | Subjectシートのボタン・イベント | `Update_Click`, `Ope_result_Click`, `Delete_Sh_Subject_Click`, `Btn_NormalizeWeight_Click`, `Worksheet_BeforeDoubleClick` |
@@ -58,6 +58,7 @@
 | フォーム | 用途 | 主要コントロール |
 |----------|------|------------------|
 | frmScoreEdit | 得点修正ダイアログ | `lblSubject`, `lblPerspective`, `lblTestname`, `lblChildName`, `lblAllocateScore`, `lblCurrentScore`, `txtNewScore`, `lblHint`, `btnUpdate`, `btnCancel`, `btn_Exempt` |
+| frmTestEdit | テスト情報編集+後出し追試設定ダイアログ | `lblKeyValue`, `lblSubjectValue`, `cmbCategoryValue`, `txtTestName`, `cmbPerspective`, `txtDetail`, `txtAllocateScore`, `cmbYear`, `cmbMonth`, `cmbDay`, `btnUpdate`, `btnCancel`, `btnRetest` |
 | frm_retest_setting | 追試計算方法設定ダイアログ | `opbtn1`～`opbtn6`（ラジオボタン: 合格点/最大値/平均値/中央値/内分点/本試のみ）, `txtbox`（α値入力）, `btn_ok`, `btn_cancel` |
 
 ## 主要機能
@@ -139,6 +140,7 @@
 - **合格者数・未合格者数**: 合格点(E4)が入力されている場合、最終列の得点から自動集計（H3/H4）
 - **結果反映**: 追試完了で最終得点を本体ファイルのデータシートに反映（"N"マーカーを上書き）
 - **ボタン**: 追試ファイルのボタンは`'本体ファイル名'!RetestModule.XXX`形式で本体マクロを呼び出す
+- **後出し追試**: テスト登録後にデータシートのヘッダー行ダブルクリック→frmTestEditフォーム→「追試を設定」ボタンで追試シートを作成（`CreateRetestSheetFromData`）。既に同キーの追試シートがある場合は警告して中止。
 
 ## 重要な定数・列挙型
 

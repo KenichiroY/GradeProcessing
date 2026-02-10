@@ -268,10 +268,12 @@ End Sub
 '===============================================================================
 ' データシートの書式設定
 ' 改善内容：
-'   - タイトル行の書式（既存値を保持）
-'   - ヘッダーラベル列（C列のラベル）に背景色
-'   - ダブルクリック操作の説明テキスト追加
+'   - タイトル行を1行に圧縮（既存値保持）
+'   - A列の重複ラベルを削除（C列のみに統一）
+'   - 行カテゴリ別の色分け（基本情報/配点・調整/統計）
+'   - エラー値（#DIV/0! #NUM!等）を条件付き書式で非表示
 '   - データ列の最小列幅を確保（###表示防止）
+'   - 児童データ開始行の上に太い境界線
 '===============================================================================
 Public Sub FormatDataSheet()
     Dim ws As Worksheet
@@ -282,40 +284,75 @@ Public Sub FormatDataSheet()
         .Cells.Font.Name = "游ゴシック"
         .Cells.Font.Size = 10
 
-        ' === タイトル行（1-2行）：値は書き換えず書式のみ ===
-        .Range("A1:C2").Interior.Color = HeaderBgColor()
+        ' === タイトル行（1行目のみ）：値は書き換えず書式のみ ===
+        .Range("A1:C1").Interior.Color = HeaderBgColor()
         .Range("A1").Font.Color = HeaderFontColor()
         .Range("A1").Font.Size = 14
         .Range("A1").Font.Bold = True
+        ' 2行目はバンドを外す（ボタン配置用の余白として残す）
+        .Range("A2:C2").Interior.ColorIndex = xlColorIndexNone
 
-        ' === 操作説明テキスト ===
+        ' === 操作説明テキスト（3行目）===
         .Range("A3").Value = "※ 得点セルをダブルクリックで修正できます"
         .Range("A3").Font.Size = 9
         .Range("A3").Font.Color = RGB(100, 100, 100)
         .Range("A3").Font.Italic = True
 
-        ' === ヘッダーラベル列（A-C列、4-22行）に背景色 ===
-        ' ※ C列にユーザーが入力済みのラベルがあるため、値は書き換えない
-        Dim headerLabels As Range
-        Set headerLabels = .Range("A4:C22")
-        With headerLabels
-            .Interior.Color = SectionBgColor()
-            .Font.Bold = True
-            .Font.Size = 9
-        End With
+        ' === A列の重複ラベルを削除（C列に既にラベルがあるため）===
+        Dim r As Long
+        For r = eRowData.rowKey To eRowData.rowCV
+            .Cells(r, 1).Value = ""
+        Next r
 
-        ' === 児童データエリアの上部境界線 ===
-        .Range("A22:C22").Borders(xlEdgeBottom).Color = HeaderBgColor()
-        .Range("A22:C22").Borders(xlEdgeBottom).Weight = xlMedium
+        ' === 行カテゴリ別の色分け ===
+        ' (1) 基本情報（4-10行：キー～詳細）→ 濃い目の青
+        .Range("A" & eRowData.rowKey & ":C" & eRowData.rowDetail).Interior.Color = SubHeaderBgColor()
+        .Range("A" & eRowData.rowKey & ":C" & eRowData.rowDetail).Font.Bold = True
+        .Range("A" & eRowData.rowKey & ":C" & eRowData.rowDetail).Font.Size = 9
+
+        ' (2) 配点・調整（11-18行：配点～重み）→ やや薄い青
+        .Range("A" & eRowData.rowAllocationScore & ":C" & eRowData.rowWeight).Interior.Color = SectionBgColor()
+        .Range("A" & eRowData.rowAllocationScore & ":C" & eRowData.rowWeight).Font.Bold = True
+        .Range("A" & eRowData.rowAllocationScore & ":C" & eRowData.rowWeight).Font.Size = 9
+
+        ' (3) 統計値（19-22行：平均～変動係数）→ さらに薄い青
+        .Range("A" & eRowData.rowAverage & ":C" & eRowData.rowCV).Interior.Color = InputBgColor()
+        .Range("A" & eRowData.rowAverage & ":C" & eRowData.rowCV).Font.Bold = True
+        .Range("A" & eRowData.rowAverage & ":C" & eRowData.rowCV).Font.Size = 9
+
+        ' === 児童データエリアの上部境界線（太線）===
+        .Range("A" & eRowData.rowCV & ":C" & eRowData.rowCV).Borders(xlEdgeBottom).Color = HeaderBgColor()
+        .Range("A" & eRowData.rowCV & ":C" & eRowData.rowCV).Borders(xlEdgeBottom).Weight = xlMedium
+
+        ' === 得点調整行（12-16行）のグループ化（折りたたみ可能に）===
+        On Error Resume Next
+        .Rows("12:16").Ungroup  ' 既存グループがあれば解除
+        On Error GoTo 0
+        .Rows("12:16").Group
+        .Outline.ShowLevels RowLevels:=1  ' 初期状態は折りたたみ
+
+        ' === エラー値の非表示（条件付き書式：エラーセルのフォントを白に）===
+        Dim lastCol As Long
+        lastCol = .Cells(eRowData.rowKey, .Columns.Count).End(xlToLeft).Column
+        If lastCol >= eColData.colDataStart Then
+            ' 統計行（平均～変動係数）のデータ列範囲に条件付き書式を設定
+            Dim statsRange As Range
+            Set statsRange = .Range( _
+                .Cells(eRowData.rowAverage, eColData.colDataStart), _
+                .Cells(eRowData.rowCV, lastCol))
+            statsRange.FormatConditions.Delete
+            With statsRange.FormatConditions.Add(Type:=xlExpression, _
+                Formula1:="=ISERROR(" & .Cells(eRowData.rowAverage, eColData.colDataStart).Address(False, False) & ")")
+                .Font.Color = RGB(255, 255, 255)  ' 白フォント
+            End With
+        End If
 
         ' === 列幅 ===
         .Columns("A").ColumnWidth = 12   ' コード
         .Columns("B").ColumnWidth = 8    ' 姓
-        .Columns("C").ColumnWidth = 12   ' 名/ラベル列（ラベルが切れないよう広めに）
+        .Columns("C").ColumnWidth = 12   ' ラベル列（ラベルが切れないよう広めに）
 
         ' === データ列の最小列幅を確保（###表示防止）===
-        Dim lastCol As Long
-        lastCol = .Cells(eRowData.rowKey, .Columns.Count).End(xlToLeft).Column
         If lastCol >= eColData.colDataStart Then
             Dim c As Long
             For c = eColData.colDataStart To lastCol

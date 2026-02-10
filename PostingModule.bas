@@ -236,13 +236,13 @@ Private Sub TransferData(ByVal numTest As Long, ByVal lastRow As Long, _
             rng = colLetter & eRowData.rowChildStart & ":" & colLetter & lastRowData
 
             Sh_data.Cells(eRowData.rowAverage, targetCol).Formula = _
-                "=AVERAGEIFS(" & rng & "," & rng & ",""<>N""," & rng & ",""<>-"")"
+                "=IFERROR(AVERAGEIFS(" & rng & "," & rng & ",""<>N""," & rng & ",""<>-""),"""")"
             Sh_data.Cells(eRowData.rowMedian, targetCol).Formula = _
-                "=MEDIAN(" & rng & ")"
+                "=IFERROR(MEDIAN(" & rng & "),"""")"
             Sh_data.Cells(eRowData.rowStdDev, targetCol).Formula = _
-                "=STDEV.P(" & rng & ")"
+                "=IFERROR(STDEV.P(" & rng & "),"""")"
             Sh_data.Cells(eRowData.rowCV, targetCol).Formula = _
-                "=" & colLetter & eRowData.rowStdDev & "/" & colLetter & eRowData.rowAverage
+                "=IFERROR(" & colLetter & eRowData.rowStdDev & "/" & colLetter & eRowData.rowAverage & ","""")"
             
             ' 児童の得点データ転記
             For j = 1 To lastRow - eRowInput.rowChildStart + 1
