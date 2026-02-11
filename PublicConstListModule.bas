@@ -23,6 +23,8 @@ Public Const COLOR_BLUE As Long = 16770740      'RGB(180, 230, 255)
 Public Const COLOR_LIGHTBLUE As Long = 16777160 'RGB(200, 255, 255)
 Public Const COLOR_GREEN As Long = 13172680     'RGB(200, 255, 200)
 Public Const COLOR_ERROR As Long = 255          'RGB(255, 0, 0) - エラー表示用
+Public Const COLOR_RETEST_HEADER As Long = 7882751   'RGB(255, 200, 120) - 追試中ヘッダー用オレンジ
+Public Const COLOR_RETEST_CELL As Long = 11854079    'RGB(255, 230, 180) - 追試中得点セル用薄オレンジ
 
 '===============================================================================
 ' 得点変換方式

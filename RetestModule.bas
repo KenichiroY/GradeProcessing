@@ -704,6 +704,11 @@ Public Sub CompleteRetest(ByVal ws As Worksheet)
         End If
     Next i
 
+    ' 追試中列のオレンジ色フォーマットをクリア（本体ファイルのモジュールを呼び出す）
+    On Error Resume Next
+    Application.Run "'" & mainWb.Name & "'!UIFormatModule.ClearRetestColumnFormat", CLng(targetCol)
+    On Error GoTo ErrorHandler
+
     ' 保護を再設定（本体ファイルのモジュールを呼び出す）
     On Error Resume Next
     Application.Run "'" & mainWb.Name & "'!DataManagementModule.ProtectScoreCells"
@@ -1317,6 +1322,9 @@ Private Sub MarkColumnAsRetestPending(ByVal targetCol As Long, ByVal childCount 
             End If
         Next j
     End With
+
+    ' 追試中列にオレンジ色のフォーマットを適用
+    Call UIFormatModule.ApplyRetestColumnFormat(targetCol)
 
     ' シート再保護
     Call DataManagementModule.ProtectScoreCells

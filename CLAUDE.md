@@ -35,20 +35,20 @@
 | PostingModule | テストデータ登録処理 | `Posting`, `TransferData`, `ResetInputForm`, `AssignKey`, `ColumnIndexToLetter` |
 | ValidationModule | 入力データ検証 | `ValidateRequiredFields`, `ValidateScoreData`, `ValidateClippingSettings`, `ValidateWeight` |
 | SubjectModule | 教科別集計・ABC評価計算 | `CollectSubjectData`, `CalculateABCEvaluation`, `NormalizeWeightByAllocateScore` |
-| DataManagementModule | データ修正・削除・エクスポート・保護 | `DeleteTestData`, `UpdateTestHeader`, `UpdateChildScore`, `ExportToCSV`, `ProtectScoreCells`, `UnprotectScoreCells` |
+| DataManagementModule | データ修正・削除・エクスポート・保護 | `DeleteTestData`, `DeleteRetestSheetForKey`, `UpdateTestHeader`, `UpdateChildScore`, `ExportToCSV`, `ProtectScoreCells`, `UnprotectScoreCells` |
 | HistoryCheckModule | 未入力データ検索・一括転記 | `SearchNotYetInput`, `TransferFromMenu`, `SearchNotYetByTest` |
 | ErrorHandlerModule | エラーハンドリング共通機能 | `ShowError`, `ShowValidationError`, `BeginProcess`, `EndProcess` |
 | ScoreCalculationModule | 得点調整・変換計算（英語版） | `CalculateAdjustedAllocateScore`, `CalculateAdjustedScore` |
 | ResultModule | Result転記・スナップショット保存 | `GenerateResultHeaders`, `TransferToResult`, `SaveSubjectSnapshot`, `FinalizeEvaluation`, `HasResultData`, `DeleteAllControls` |
 | RetestModule | 追試機能（ファイル生成・シート作成・結果反映） | `CreateRetestSheet`, `CreateRetestSheetFromData`, `HasRetestSheetForKey`, `AddRetestRound(UI)`, `CompleteRetest(UI)`, `ApplyFinalScoreFormulas(UI)`, `OpenRetestFile`, `RefreshRetestMenu` |
-| UIFormatModule | UI書式一括設定（手動実行） | `ApplyAllSheetFormats`, `FormatMenuSheet`, `FormatMenuDataArea`, `FormatNamelistSheet`, `FormatDataSheet`, `FormatSubjectSheet`, `FormatRetestTemplateSheet`, `SetSheetTabColors` |
+| UIFormatModule | UI書式一括設定（手動実行）+ 追試列視覚表示 | `ApplyAllSheetFormats`, `FormatMenuSheet`, `FormatMenuDataArea`, `FormatNamelistSheet`, `FormatDataSheet`, `FormatSubjectSheet`, `FormatRetestTemplateSheet`, `SetSheetTabColors`, `ApplyRetestColumnFormat`, `ClearRetestColumnFormat` |
 
 ### シートモジュール
 
 | モジュール | 用途 | 主要イベント/プロシージャ |
 |------------|------|--------------------------|
 | ThisWorkbook | ワークブック開閉時の初期化 | `Workbook_Open` → 日付初期化、チェックボックス初期化、データシート保護 |
-| Sh_data | データシートのイベント処理 | `Worksheet_BeforeDoubleClick` → 得点セル: frmScoreEdit / ヘッダー行: frmTestEdit |
+| Sh_data | データシートのイベント処理 | `Worksheet_BeforeDoubleClick` → 得点セル: frmScoreEdit / ヘッダー行: frmTestEdit（削除リクエスト判定含む） |
 | sh_input | 入力シートのUI制御 | `Cb_clipping`, `Cb_convertScore`, `Cb_adjustScore`, `ClearInputForm` |
 | sh_namelist | 名簿シートのボタンイベント | （ボタン割り当て用） |
 | sh_subject | Subjectシートのボタン・イベント | `Update_Click`, `Ope_result_Click`, `Delete_Sh_Subject_Click`, `Btn_NormalizeWeight_Click`, `Worksheet_BeforeDoubleClick` |
@@ -58,7 +58,7 @@
 | フォーム | 用途 | 主要コントロール |
 |----------|------|------------------|
 | frmScoreEdit | 得点修正ダイアログ | `lblSubject`, `lblPerspective`, `lblTestname`, `lblChildName`, `lblAllocateScore`, `lblCurrentScore`, `txtNewScore`, `lblHint`, `btnUpdate`, `btnCancel`, `btn_Exempt` |
-| frmTestEdit | テスト情報編集+後出し追試設定ダイアログ | `lblKeyValue`, `lblSubjectValue`, `cmbCategoryValue`, `txtTestName`, `cmbPerspective`, `txtDetail`, `txtAllocateScore`, `cmbYear`, `cmbMonth`, `cmbDay`, `btnUpdate`, `btnCancel`, `btnRetest` |
+| frmTestEdit | テスト情報編集+後出し追試設定+削除ダイアログ | `lblKeyValue`, `lblSubjectValue`, `cmbCategoryValue`, `txtTestName`, `cmbPerspective`, `txtDetail`, `txtAllocateScore`, `cmbYear`, `cmbMonth`, `cmbDay`, `btnUpdate`, `btnCancel`, `btnRetest`, `btnDelete` |
 | frm_retest_setting | 追試計算方法設定ダイアログ | `opbtn1`～`opbtn6`（ラジオボタン: 合格点/最大値/平均値/中央値/内分点/本試のみ）, `txtbox`（α値入力）, `btn_ok`, `btn_cancel` |
 
 ## 主要機能
@@ -141,6 +141,13 @@
 - **結果反映**: 追試完了で最終得点を本体ファイルのデータシートに反映（"N"マーカーを上書き）
 - **ボタン**: 追試ファイルのボタンは`'本体ファイル名'!RetestModule.XXX`形式で本体マクロを呼び出す
 - **後出し追試**: テスト登録後にデータシートのヘッダー行ダブルクリック→frmTestEditフォーム→「追試を設定」ボタンで追試シートを作成（`CreateRetestSheetFromData`）。既に同キーの追試シートがある場合は警告して中止。
+- **追試中列の視覚表示**: 追試中の列はヘッダー行がオレンジ(`COLOR_RETEST_HEADER`)、得点セルが薄オレンジ(`COLOR_RETEST_CELL`)で着色され、"N"セルは太字・濃いオレンジフォントで強調表示。追試完了時に自動でクリアされる（`UIFormatModule.ApplyRetestColumnFormat` / `ClearRetestColumnFormat`）。
+
+### 11. テスト情報編集・削除 (frmTestEdit)
+- データシートのヘッダー行（4-22行）ダブルクリックで表示
+- テスト名、カテゴリ、観点、詳細、配点、実施日の編集
+- 追試設定ボタン（後出し追試の作成）
+- **削除ボタン**: テストデータをフォームから直接削除可能。追試中のテストは強制削除確認後、追試ファイル内の対応シートとMENUエントリも同時に削除。削除はフォームを閉じた後に`DataManagementModule.DeleteTestData`経由で実行（`mDeleteRequested`/`mForceDeleteRetest`フラグ方式）。
 
 ## 重要な定数・列挙型
 
@@ -192,6 +199,10 @@ RESULT_PERSPECTIVE_ROW = 9               ' 観点行
 RESULT_LABEL_ROW = 10                    ' ラベル行（達成率/ABC）
 RESULT_DATA_START_ROW = 11               ' 児童データ開始行
 RESULT_DATA_START_COL = 4                ' データ開始列（D列）
+
+' 追試中列の視覚表示用色定数
+COLOR_RETEST_HEADER = 7882751            ' RGB(255, 200, 120) ヘッダー行用オレンジ
+COLOR_RETEST_CELL = 11854079             ' RGB(255, 230, 180) 得点セル用薄オレンジ
 
 ' 追試シート定数
 ROW_INPUT_RETEST = 28                    ' 入力シートの追試有無行

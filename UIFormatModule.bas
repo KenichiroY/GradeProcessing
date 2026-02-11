@@ -361,6 +361,16 @@ Public Sub FormatDataSheet()
                 End If
             Next c
         End If
+
+        ' === 追試中列のオレンジ色表示を再適用 ===
+        If lastCol >= eColData.colDataStart Then
+            Dim retestCol As Long
+            For retestCol = eColData.colDataStart To lastCol
+                If CStr(.Cells(eRowData.rowChildStart, retestCol).Value) = RETEST_MARKER Then
+                    Call ApplyRetestColumnFormat(retestCol)
+                End If
+            Next retestCol
+        End If
     End With
 End Sub
 
@@ -542,4 +552,75 @@ Private Sub SetThinBorders(ByVal rng As Range, ByVal clr As Long)
         End With
         On Error GoTo 0
     Next edge
+End Sub
+
+'===============================================================================
+' 追試中列にオレンジ色のフォーマットを適用
+' 説明: 追試中マーカー"N"が入った列のヘッダー行と得点セルを
+'       オレンジ系の背景色で強調表示する
+' 引数: targetCol - データシートの対象列番号
+'===============================================================================
+Public Sub ApplyRetestColumnFormat(ByVal targetCol As Long)
+    Dim lastRow As Long
+
+    With Sh_data
+        lastRow = .Cells(.Rows.Count, eColData.colCode).End(xlUp).Row
+        If lastRow < eRowData.rowChildStart Then lastRow = eRowData.rowChildStart
+
+        ' ヘッダー行（4-22行）にオレンジ背景
+        .Range(.Cells(eRowData.rowKey, targetCol), _
+               .Cells(eRowData.rowCV, targetCol)).Interior.Color = COLOR_RETEST_HEADER
+
+        ' 児童データ行（23行～最終行）に薄オレンジ背景
+        .Range(.Cells(eRowData.rowChildStart, targetCol), _
+               .Cells(lastRow, targetCol)).Interior.Color = COLOR_RETEST_CELL
+
+        ' "N"セルのフォントを太字・濃いオレンジ色に
+        Dim j As Long
+        For j = eRowData.rowChildStart To lastRow
+            If CStr(.Cells(j, targetCol).Value) = RETEST_MARKER Then
+                .Cells(j, targetCol).Font.Bold = True
+                .Cells(j, targetCol).Font.Color = RGB(200, 100, 0)  ' 濃いオレンジ
+            End If
+        Next j
+    End With
+End Sub
+
+'===============================================================================
+' 追試中列のオレンジ色フォーマットをクリアし通常色に戻す
+' 説明: 追試完了時に呼び出し、ヘッダー行は行帯ごとの元の色に復元し、
+'       得点セルの背景色とフォント装飾をリセットする
+' 引数: targetCol - データシートの対象列番号
+'===============================================================================
+Public Sub ClearRetestColumnFormat(ByVal targetCol As Long)
+    Dim lastRow As Long
+
+    With Sh_data
+        lastRow = .Cells(.Rows.Count, eColData.colCode).End(xlUp).Row
+        If lastRow < eRowData.rowChildStart Then lastRow = eRowData.rowChildStart
+
+        ' ヘッダー行の背景色を行帯ごとに復元
+        ' (1) 基本情報（4-10行）→ SubHeaderBgColor
+        .Range(.Cells(eRowData.rowKey, targetCol), _
+               .Cells(eRowData.rowDetail, targetCol)).Interior.Color = SubHeaderBgColor()
+
+        ' (2) 配点・調整（11-18行）→ SectionBgColor
+        .Range(.Cells(eRowData.rowAllocationScore, targetCol), _
+               .Cells(eRowData.rowWeight, targetCol)).Interior.Color = SectionBgColor()
+
+        ' (3) 統計値（19-22行）→ InputBgColor
+        .Range(.Cells(eRowData.rowAverage, targetCol), _
+               .Cells(eRowData.rowCV, targetCol)).Interior.Color = InputBgColor()
+
+        ' 児童データ行の背景色をクリア
+        .Range(.Cells(eRowData.rowChildStart, targetCol), _
+               .Cells(lastRow, targetCol)).Interior.ColorIndex = xlColorIndexNone
+
+        ' フォント装飾をリセット
+        Dim j As Long
+        For j = eRowData.rowChildStart To lastRow
+            .Cells(j, targetCol).Font.Bold = False
+            .Cells(j, targetCol).Font.Color = RGB(0, 0, 0)  ' 黒に戻す
+        Next j
+    End With
 End Sub

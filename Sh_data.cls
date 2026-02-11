@@ -53,6 +53,19 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
         Set frmEdit = New frmTestEdit
         frmEdit.Initialize Target.Column
         frmEdit.Show vbModal
+
+        ' 削除リクエストの判定（Hide後にプロパティ読み取り→Unload）
+        Dim deleteReq As Boolean
+        Dim forceRetest As Boolean
+        Dim delKey As String
+        deleteReq = frmEdit.DeleteRequested
+        forceRetest = frmEdit.ForceDeleteRetest
+        delKey = frmEdit.TestKey
+        Unload frmEdit
         Set frmEdit = Nothing
+
+        If deleteReq Then
+            Call DataManagementModule.DeleteTestData(delKey, forceRetest)
+        End If
     End If
 End Sub

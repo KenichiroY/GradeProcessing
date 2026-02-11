@@ -384,6 +384,8 @@ Private Sub MarkAsRetestPending(ByVal numTest As Long, ByVal lastRowData As Long
                         .Cells(j, targetCol).Value = RETEST_MARKER
                     End If
                 Next j
+                ' 追試中列にオレンジ色のフォーマットを適用
+                Call UIFormatModule.ApplyRetestColumnFormat(targetCol)
             End If
         Next i
     End With

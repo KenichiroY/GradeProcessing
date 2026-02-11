@@ -10,56 +10,180 @@ Option Explicit
 ' テストデータの削除
 ' 引数:
 '   testKey - 削除するテストキー（例: J001）
+'   deleteRetestSheet - True: 追試ファイル内の対応シートも同時に削除する
 '===============================================================================
-Public Sub DeleteTestData(ByVal testKey As String)
+Public Sub DeleteTestData(ByVal testKey As String, Optional ByVal deleteRetestSheet As Boolean = False)
     On Error GoTo ErrorHandler
-    
+
     Dim i As Long
     Dim lastCol As Long
     Dim targetCol As Long
     Dim testName As String
     Dim subjectName As String
-    
+
     ' 処理開始
     Call ErrorHandlerModule.BeginProcess
-    
+
     ' テストキーで列を検索
     targetCol = FindTestColumn(testKey)
-    
+
     If targetCol = 0 Then
         Call ErrorHandlerModule.ShowValidationError("テストキー「" & testKey & "」が見つかりません。")
         GoTo CleanExit
     End If
-    
+
     ' 削除対象の情報を取得
     testName = Sh_data.Cells(eRowData.rowTestName, targetCol).Value
     subjectName = Sh_data.Cells(eRowData.rowSubject, targetCol).Value
-    
+
     ' 確認ダイアログ
-    If Not ErrorHandlerModule.ShowConfirmation( _
-        "以下のテストデータを削除します。" & vbCrLf & vbCrLf & _
-        "キー: " & testKey & vbCrLf & _
-        "教科: " & subjectName & vbCrLf & _
-        "テスト名: " & testName & vbCrLf & vbCrLf & _
-        "この操作は取り消せません。削除してもよろしいですか？", _
-        "削除確認") Then
+    ' 追試中テスト: frmTestEditで1回目の確認済みなので「再確認」
+    ' 通常テスト: ここが1回目の確認
+    Dim confirmMsg As String
+    Dim confirmTitle As String
+    Dim hasRetestSheet As Boolean
+    hasRetestSheet = False
+
+    If deleteRetestSheet Then
+        confirmMsg = "【再確認】以下のテストデータを削除します。" & vbCrLf & vbCrLf & _
+            "キー: " & testKey & vbCrLf & _
+            "教科: " & subjectName & vbCrLf & _
+            "テスト名: " & testName & vbCrLf & vbCrLf & _
+            "※ 追試中のため、追試ファイル内の対応シートも削除されます。" & vbCrLf & vbCrLf & _
+            "この操作は取り消せません。削除してもよろしいですか？"
+        confirmTitle = "削除の再確認（追試含む）"
+    Else
+        confirmMsg = "以下のテストデータを削除します。" & vbCrLf & vbCrLf & _
+            "キー: " & testKey & vbCrLf & _
+            "教科: " & subjectName & vbCrLf & _
+            "テスト名: " & testName & vbCrLf & vbCrLf & _
+            "この操作は取り消せません。削除してもよろしいですか？"
+        confirmTitle = "削除確認"
+    End If
+
+    If Not ErrorHandlerModule.ShowConfirmation(confirmMsg, confirmTitle) Then
         GoTo CleanExit
     End If
-    
+
+    ' 追試ファイル内の対応シートを削除（再確認後に追試ファイルを開く）
+    If deleteRetestSheet Then
+        hasRetestSheet = RetestModule.HasRetestSheetForKey(testKey)
+        If hasRetestSheet Then
+            Call DeleteRetestSheetForKey(testKey)
+        End If
+    End If
+
+    ' シート保護を一時解除
+    On Error Resume Next
+    Sh_data.Unprotect
+    On Error GoTo ErrorHandler
+
     ' 列を削除
     Sh_data.Columns(targetCol).Delete
-    
-    Call ErrorHandlerModule.ShowSuccess("テストデータを削除しました。")
-    
+
+    ' シート再保護
+    Call ProtectScoreCells
+
+    ' 本体ファイルを前面に戻す（追試ファイルが前面にある場合の対策）
+    ThisWorkbook.Activate
+    Sh_data.Activate
+
+    ' 成功メッセージ
+    Dim successMsg As String
+    successMsg = "テストデータを削除しました。"
+    If hasRetestSheet Then
+        successMsg = successMsg & vbCrLf & "追試ファイルの対応シートも削除しました。"
+    End If
+    Call ErrorHandlerModule.ShowSuccess(successMsg)
+
 CleanExit:
     Call ErrorHandlerModule.EndProcess
     Exit Sub
-    
+
 ErrorHandler:
     Call ErrorHandlerModule.CleanupOnError
     Dim errInfo As ErrorInfo
     errInfo = ErrorHandlerModule.CreateErrorInfo("DataManagementModule", "DeleteTestData")
     Call ErrorHandlerModule.ShowError(errInfo)
+End Sub
+
+'===============================================================================
+' 追試ファイル内の対応する追試シートとMENUエントリを削除
+' 説明: 追試ファイルが存在し、対象キーのシートがあれば削除する。
+'       MENUシートの該当行も削除する。
+'       追試ファイルが存在しない場合やシートが見つからない場合は何もしない。
+' 引数:
+'   testKey - テストキー
+'===============================================================================
+Private Sub DeleteRetestSheetForKey(ByVal testKey As String)
+    On Error Resume Next
+
+    Dim retestFilePath As String
+    retestFilePath = RetestModule.GetRetestFilePath()
+
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    ' 追試ファイルが存在しなければ何もしない
+    If Not fso.FileExists(retestFilePath) Then
+        Set fso = Nothing
+        Exit Sub
+    End If
+    Set fso = Nothing
+
+    ' 追試ファイルを取得（開く）
+    Dim retestWb As Workbook
+    Dim fileName As String
+    fileName = Dir(retestFilePath)
+
+    On Error Resume Next
+    Set retestWb = Workbooks(fileName)
+    On Error GoTo 0
+
+    If retestWb Is Nothing Then
+        On Error Resume Next
+        Set retestWb = Workbooks.Open(retestFilePath)
+        On Error GoTo 0
+    End If
+
+    If retestWb Is Nothing Then Exit Sub
+
+    ' 対象キーの追試シートを検索・削除
+    Dim ws As Worksheet
+    Dim found As Boolean
+    found = False
+
+    For Each ws In retestWb.Worksheets
+        If ws.Name <> "MENU" Then
+            Dim parentKey As String
+            parentKey = ""
+            On Error Resume Next
+            parentKey = ws.Range(RNG_RT_PARENT_KEY).Value & ""
+            On Error GoTo 0
+            If parentKey = testKey Then
+                Application.DisplayAlerts = False
+                ws.Delete
+                Application.DisplayAlerts = True
+                found = True
+                Exit For
+            End If
+        End If
+    Next ws
+
+    ' MENUシートの該当行を削除
+    Dim menuWs As Worksheet
+    Set menuWs = retestWb.Sheets("MENU")
+    Dim lastRow As Long
+    lastRow = menuWs.Cells(Rows.Count, RT_MENU_COL_KEY).End(xlUp).Row
+
+    Dim j As Long
+    For j = lastRow To RT_MENU_DATA_START_ROW Step -1
+        If menuWs.Cells(j, RT_MENU_COL_KEY).Value = testKey Then
+            menuWs.Rows(j).Delete
+        End If
+    Next j
+
+    retestWb.Save
 End Sub
 
 '===============================================================================
