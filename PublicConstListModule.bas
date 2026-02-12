@@ -41,6 +41,7 @@ End Enum
 Public Const RNG_NAMELIST_CHILDCOUNT As String = "E8"
 Public Const NAMELIST_HEADER_ROW As Long = 10
 Public Const NAMELIST_DATA_START_ROW As Long = 11
+Public Const NAMELIST_COL_END_DATE As Long = 6   ' F列：在籍終了日
 
 '===============================================================================
 ' テスト入力シート定数

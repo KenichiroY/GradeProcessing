@@ -109,3 +109,76 @@ ErrorHandler:
     errInfo = ErrorHandlerModule.CreateErrorInfo("sh_input", "ClearInputForm")
     Call ErrorHandlerModule.ShowError(errInfo)
 End Sub
+
+'===============================================================================
+' 在籍/全員切替ボタン
+' 説明: ボタンのキャプションが「在籍」のとき、名簿F列の在籍終了日が
+'       実施日(J4)より前の児童の行を非表示にする。
+'       キャプションが「全員」のときは全児童行を再表示する。
+' ボタン名: Btn_enrollment（手動配置、マクロ割り当て: sh_input.ToggleEnrollmentFilter）
+'===============================================================================
+Public Sub ToggleEnrollmentFilter()
+    On Error GoTo ErrorHandler
+
+    Dim btn As Button
+    Set btn = sh_input.Buttons("Btn_enrollment")
+
+    Dim childCount As Long
+    childCount = sh_namelist.Range(RNG_NAMELIST_CHILDCOUNT).Value
+    If childCount <= 0 Then Exit Sub
+
+    If btn.Caption = "全員" Then
+        ' --- 現在は全員表示中 → 在籍のみに切替 ---
+
+        ' 実施日を取得
+        Dim testDate As Variant
+        testDate = sh_input.Range(RNG_INPUT_DATE).Value
+
+        If IsEmpty(testDate) Or Not IsDate(testDate) Then
+            MsgBox "実施日（J4）が入力されていません。" & vbCrLf & _
+                   "実施日を入力してから再度お試しください。", _
+                   vbExclamation, "在籍フィルター"
+            Exit Sub
+        End If
+
+        Dim dtTest As Date
+        dtTest = CDate(testDate)
+
+        Dim i As Long
+        Dim endDateVal As Variant
+        Dim inputRow As Long
+
+        For i = 1 To childCount
+            inputRow = eRowInput.rowChildStart + i - 1
+            endDateVal = sh_namelist.Cells(NAMELIST_DATA_START_ROW + i - 1, _
+                                           NAMELIST_COL_END_DATE).Value
+
+            ' 在籍終了日が入力済み かつ 実施日より前 → 非表示
+            If Not IsEmpty(endDateVal) And IsDate(endDateVal) Then
+                If CDate(endDateVal) < dtTest Then
+                    sh_input.Rows(inputRow).Hidden = True
+                End If
+            End If
+        Next i
+
+        btn.Caption = "在籍"
+
+    Else
+        ' --- 現在は在籍のみ表示中 → 全員表示に切替 ---
+        Dim startRow As Long
+        Dim endRow As Long
+        startRow = eRowInput.rowChildStart
+        endRow = eRowInput.rowChildStart + childCount - 1
+
+        sh_input.Rows(startRow & ":" & endRow).Hidden = False
+
+        btn.Caption = "全員"
+    End If
+
+    Exit Sub
+
+ErrorHandler:
+    Dim errInfo As ErrorInfo
+    errInfo = ErrorHandlerModule.CreateErrorInfo("sh_input", "ToggleEnrollmentFilter")
+    Call ErrorHandlerModule.ShowError(errInfo)
+End Sub

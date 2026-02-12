@@ -41,7 +41,7 @@
 | ScoreCalculationModule | 得点調整・変換計算（英語版） | `CalculateAdjustedAllocateScore`, `CalculateAdjustedScore` |
 | ResultModule | Result転記・スナップショット保存 | `GenerateResultHeaders`, `TransferToResult`, `SaveSubjectSnapshot`, `FinalizeEvaluation`, `HasResultData`, `DeleteAllControls` |
 | RetestModule | 追試機能（ファイル生成・シート作成・結果反映） | `CreateRetestSheet`, `CreateRetestSheetFromData`, `HasRetestSheetForKey`, `AddRetestRound(UI)`, `CompleteRetest(UI)`, `ApplyFinalScoreFormulas(UI)`, `OpenRetestFile`, `RefreshRetestMenu` |
-| UIFormatModule | UI書式一括設定（手動実行）+ 追試列視覚表示 | `ApplyAllSheetFormats`, `FormatMenuSheet`, `FormatMenuDataArea`, `FormatNamelistSheet`, `FormatDataSheet`, `FormatSubjectSheet`, `FormatRetestTemplateSheet`, `SetSheetTabColors`, `ApplyRetestColumnFormat`, `ClearRetestColumnFormat` |
+| UIFormatModule | UI書式（本番使用のみ）+ 追試列視覚表示 | `FormatMenuDataArea`, `ApplyRetestColumnFormat`, `ClearRetestColumnFormat` |
 
 ### シートモジュール
 
@@ -49,7 +49,7 @@
 |------------|------|--------------------------|
 | ThisWorkbook | ワークブック開閉時の初期化 | `Workbook_Open` → 日付初期化、チェックボックス初期化、データシート保護 |
 | Sh_data | データシートのイベント処理 | `Worksheet_BeforeDoubleClick` → 得点セル: frmScoreEdit / ヘッダー行: frmTestEdit（削除リクエスト判定含む） |
-| sh_input | 入力シートのUI制御 | `Cb_clipping`, `Cb_convertScore`, `Cb_adjustScore`, `ClearInputForm` |
+| sh_input | 入力シートのUI制御 | `Cb_clipping`, `Cb_convertScore`, `Cb_adjustScore`, `ClearInputForm`, `ToggleEnrollmentFilter` |
 | sh_namelist | 名簿シートのボタンイベント | （ボタン割り当て用） |
 | sh_subject | Subjectシートのボタン・イベント | `Update_Click`, `Ope_result_Click`, `Delete_Sh_Subject_Click`, `Btn_NormalizeWeight_Click`, `Worksheet_BeforeDoubleClick` |
 
@@ -149,6 +149,13 @@
 - 追試設定ボタン（後出し追試の作成）
 - **削除ボタン**: テストデータをフォームから直接削除可能。追試中のテストは強制削除確認後、追試ファイル内の対応シートとMENUエントリも同時に削除。削除はフォームを閉じた後に`DataManagementModule.DeleteTestData`経由で実行（`mDeleteRequested`/`mForceDeleteRetest`フラグ方式）。
 
+### 12. 在籍フィルター (sh_input.ToggleEnrollmentFilter)
+- 入力シートのボタン（`Btn_enrollment`）で在籍児童のみ/全員表示を切替
+- 「在籍」ボタン押下: 名簿F列（在籍終了日）が実施日（J4）より前の児童行を非表示
+- 「全員」ボタン押下: 全児童行を再表示
+- ボタンのキャプション（「在籍」/「全員」）が状態を保持（セルに状態を保存しない）
+- 実施日が未入力の場合は警告メッセージを表示して中止
+
 ## 重要な定数・列挙型
 
 ```vba
@@ -188,6 +195,7 @@ rowChildStart = 23          ' 児童データ開始行
 
 ' 重要なセル参照定数
 RNG_NAMELIST_CHILDCOUNT = "E8"           ' 名簿シートの児童数
+NAMELIST_COL_END_DATE = 6                ' 名簿シートの在籍終了日（F列）
 RNG_INPUT_SUBJECT = "D4"                 ' 入力シートの教科
 RNG_SUBJECT_SUBJECT = "B2"               ' Subjectシートの教科
 RNG_SUBJECT_ISADJUST = "B4"              ' 得点調整有効/無効
@@ -410,7 +418,7 @@ End Type
 
 ### 入力シート (sh_input)
 - チェックボックス: `Cb_clipping`, `Cb_convertScore`, `Cb_adjustScore`
-- ボタン: 登録（PostingModule.Posting）、クリア（ClearInputForm）
+- ボタン: 登録（PostingModule.Posting）、クリア（ClearInputForm）、在籍/全員切替（ToggleEnrollmentFilter、ボタン名: Btn_enrollment）
 
 ### Subjectシート (sh_subject)
 - チェックボックス: `perspective1`～`perspective5`（観点選択）
