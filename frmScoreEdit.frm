@@ -58,7 +58,7 @@ Public Sub Initialize(ByVal targetRow As Long, ByVal targetCol As Long)
     End If
 
     ' ヒントを更新
-    lblHint.Caption = "「-」(免除)を選択した場合、成績算出時に計算から除外されます。"
+    lblHint.Caption = "「-」(免除)を選んだ場合、達成率算出時に計算から除外されます。"
     ' 入力欄にフォーカス
     txtNewScore.SetFocus
 End Sub
@@ -73,10 +73,10 @@ Private Sub btnUpdate_Click()
 
     ' 入力値の検証
     If inputValue = "" Then
-        ' 空欄は許可（未入力として扱う）
+        ' 空欄は未入力として扱う
         newScore = Empty
     ElseIf inputValue = "-" Then
-        ' 欠席
+        ' 免除
         newScore = "-"
     ElseIf Not IsNumeric(inputValue) Then
         MsgBox "数値または「-」（免除）を入力してください。", vbExclamation, "入力エラー"
@@ -99,15 +99,8 @@ Private Sub btnUpdate_Click()
         End If
     End If
 
-    ' 保護を一時解除して更新
-    On Error Resume Next
-    Sh_data.Unprotect
-    On Error GoTo 0
-
+    ' UserInterfaceOnly:=True のためVBAからの書き込みは制限されない
     Sh_data.Cells(mTargetRow, mTargetCol).value = newScore
-
-    ' 保護を再設定
-    Call ProtectScoreCells
 
     ' フォームを閉じる
     Unload Me
@@ -124,17 +117,11 @@ End Sub
 ' Escキーでキャンセル
 '===============================================================================
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
-    ' 何もしない（通常のクローズを許可）
+    ' 何もしない（通常のクローズ処理）
 End Sub
 
 Private Sub btn_Exempt_Click()
     txtNewScore.value = "-"
-End Sub
-'===============================================================================
-' 得点セルの保護を設定
-'===============================================================================
-Private Sub ProtectScoreCells()
-    Call DataManagementModule.ProtectScoreCells
 End Sub
 
 

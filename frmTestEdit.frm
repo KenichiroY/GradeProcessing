@@ -1,12 +1,12 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} frmTestEdit
    Caption         =   "テスト情報の編集"
-   ClientHeight    =   6000
+   ClientHeight    =   7245
    ClientLeft      =   120
    ClientTop       =   465
-   ClientWidth     =   5400
+   ClientWidth     =   11100
    OleObjectBlob   =   "frmTestEdit.frx":0000
-   StartUpPosition =   1
+   StartUpPosition =   1  'オーナー フォームの中央
 End
 Attribute VB_Name = "frmTestEdit"
 Attribute VB_GlobalNameSpace = False
@@ -15,23 +15,24 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 '===============================================================================
 ' フォーム名: frmTestEdit
-' 説明: テスト情報の編集 + 後出し追試設定
+' 機能: テスト情報の編集 + 後出し追試設定
 '       データシートのヘッダー行（4-22行）ダブルクリックで表示
 '
 ' コントロール構成:
 '   lblKeyValue       - Label: テストキー（読取専用）
 '   lblSubjectValue   - Label: 教科（読取専用）
 '   cmbCategoryValue  - ComboBox: カテゴリ（データシートの既存値から取得）
-'   txtTestName       - TextBox: テスト名（編集可能）
+'   txtTestName       - TextBox: テスト名（編集可）
 '   cmbPerspective    - ComboBox: 観点（sh_settingからリスト取得）
-'   txtDetail         - TextBox: 詳細（編集可能）
-'   txtAllocateScore  - TextBox: 配点（編集可能、数値検証）
+'   txtDetail         - TextBox: 詳細（編集可）
+'   txtAllocateScore  - TextBox: 配点（編集可、数値検証）
 '   cmbYear           - ComboBox: 実施日（年）
 '   cmbMonth          - ComboBox: 実施日（月）
 '   cmbDay            - ComboBox: 実施日（日）
 '   btnUpdate         - CommandButton: 更新ボタン
 '   btnCancel         - CommandButton: キャンセルボタン
 '   btnRetest         - CommandButton: 追試を設定ボタン
+'   btnDelete         - CommandButton: 削除ボタン
 '===============================================================================
 Option Explicit
 
@@ -59,28 +60,28 @@ Public Sub Initialize(ByVal targetCol As Long)
     Call InitDatePickers
 
     With Sh_data
-        ' テスト情報を読み込み（読取専用フィールド）
-        lblKeyValue.Caption = .Cells(eRowData.rowKey, mTargetCol).Value
-        lblSubjectValue.Caption = .Cells(eRowData.rowSubject, mTargetCol).Value
+        ' テスト情報読み込み（読取専用フィールド）
+        lblKeyValue.Caption = .Cells(eRowData.rowKey, mTargetCol).value
+        lblSubjectValue.Caption = .Cells(eRowData.rowSubject, mTargetCol).value
 
         ' カテゴリ: コンボボックスに現在値をセット
         Dim currentCategory As String
-        currentCategory = .Cells(eRowData.rowCategory, mTargetCol).Value & ""
+        currentCategory = .Cells(eRowData.rowCategory, mTargetCol).value & ""
         SetComboValue cmbCategoryValue, currentCategory
 
-        ' 編集可能フィールド
-        txtTestName.Text = .Cells(eRowData.rowTestName, mTargetCol).Value & ""
-        txtDetail.Text = .Cells(eRowData.rowDetail, mTargetCol).Value & ""
-        txtAllocateScore.Text = .Cells(eRowData.rowAllocationScore, mTargetCol).Value & ""
+        ' 編集可フィールド
+        txtTestName.Text = .Cells(eRowData.rowTestName, mTargetCol).value & ""
+        txtDetail.Text = .Cells(eRowData.rowDetail, mTargetCol).value & ""
+        txtAllocateScore.Text = .Cells(eRowData.rowAllocationScore, mTargetCol).value & ""
 
         ' 観点: コンボボックスに現在値をセット
         Dim currentPerspective As String
-        currentPerspective = .Cells(eRowData.rowPerspective, mTargetCol).Value & ""
+        currentPerspective = .Cells(eRowData.rowPerspective, mTargetCol).value & ""
         SetComboValue cmbPerspective, currentPerspective
 
         ' 実施日: 年・月・日コンボボックスに現在値をセット
         Dim dateVal As Variant
-        dateVal = .Cells(eRowData.rowTestDate, mTargetCol).Value
+        dateVal = .Cells(eRowData.rowTestDate, mTargetCol).value
         If IsDate(dateVal) Then
             Dim d As Date
             d = CDate(dateVal)
@@ -89,10 +90,10 @@ Public Sub Initialize(ByVal targetCol As Long)
             SetComboValue cmbDay, CStr(Day(d))
         End If
 
-        ' 追試ボタンの有効/無効判定
+        ' 追試ボタンの有効/無効設定
         Dim hasRetestMarker As Boolean
         Dim firstChildVal As Variant
-        firstChildVal = .Cells(eRowData.rowChildStart, mTargetCol).Value
+        firstChildVal = .Cells(eRowData.rowChildStart, mTargetCol).value
         hasRetestMarker = (CStr(firstChildVal) = RETEST_MARKER)
 
         If hasRetestMarker Then
@@ -113,13 +114,13 @@ End Sub
 '===============================================================================
 Private Sub LoadCategoryList()
     cmbCategoryValue.Clear
-    cmbCategoryValue.Style = fmStyleDropDownCombo  ' 手入力も可能
+    cmbCategoryValue.Style = fmStyleDropDownList
 
     Dim i As Long
     Dim val As String
     With sh_setting
         For i = SETTING_SUBJECT_START_ROW To SETTING_SUBJECT_START_ROW + 10
-            val = Trim(.Cells(i, SETTING_CATEGORY_COL).Value & "")
+            val = Trim(.Cells(i, SETTING_CATEGORY_COL).value & "")
             If val = "" Then Exit For
             cmbCategoryValue.AddItem val
         Next i
@@ -131,13 +132,13 @@ End Sub
 '===============================================================================
 Private Sub LoadPerspectiveList()
     cmbPerspective.Clear
-    cmbPerspective.Style = fmStyleDropDownCombo  ' 手入力も可能
+    cmbPerspective.Style = fmStyleDropDownList
 
     Dim i As Long
     Dim val As String
     With sh_setting
         For i = SETTING_SUBJECT_START_ROW To SETTING_SUBJECT_START_ROW + 10
-            val = Trim(.Cells(i, SETTING_PERSPECTIVE_COL).Value & "")
+            val = Trim(.Cells(i, SETTING_PERSPECTIVE_COL).value & "")
             If val = "" Then Exit For
             cmbPerspective.AddItem val
         Next i
@@ -152,7 +153,7 @@ Private Sub InitDatePickers()
 
     ' 年: 現在年の前後2年
     cmbYear.Clear
-    cmbYear.Style = fmStyleDropDownCombo
+    cmbYear.Style = fmStyleDropDownList
     Dim currentYear As Long
     currentYear = Year(Date)
     For i = currentYear - 2 To currentYear + 1
@@ -233,13 +234,12 @@ Private Sub SetComboValue(ByVal cmb As MSForms.ComboBox, ByVal val As String)
             Exit Sub
         End If
     Next i
-    ' リストにない場合はテキストとして設定
-    cmb.Text = val
+    ' リストにない場合は未選択のままにする
 End Sub
 
 '===============================================================================
 ' 日付コンボボックスからDate値を取得するヘルパー
-' 戻り値: 有効なDate、無効ならEmpty
+' 戻り値: 有効ならDate、無効ならEmpty
 '===============================================================================
 Private Function GetDateFromCombos() As Variant
     If Not IsNumeric(cmbYear.Text) Or _
@@ -299,7 +299,7 @@ Private Sub btnUpdate_Click()
         Exit Sub
     End If
 
-    ' 実施日: 年・月・日すべて選択されているか
+    ' 実施日: 年・月・日がすべて選択されているか
     Dim newDate As Variant
     newDate = GetDateFromCombos()
     If IsEmpty(newDate) Then
@@ -308,23 +308,16 @@ Private Sub btnUpdate_Click()
         Exit Sub
     End If
 
-    ' === シート保護を一時解除 ===
-    On Error Resume Next
-    Sh_data.Unprotect
-    On Error GoTo 0
-
     ' === データ更新 ===
+    ' 注: UserInterfaceOnly:=Trueで保護済みのため、VBAからの書き込みに保護解除は不要
     With Sh_data
-        .Cells(eRowData.rowCategory, mTargetCol).Value = Trim(cmbCategoryValue.Text)
-        .Cells(eRowData.rowTestName, mTargetCol).Value = Trim(txtTestName.Text)
-        .Cells(eRowData.rowPerspective, mTargetCol).Value = Trim(cmbPerspective.Text)
-        .Cells(eRowData.rowDetail, mTargetCol).Value = Trim(txtDetail.Text)
-        .Cells(eRowData.rowAllocationScore, mTargetCol).Value = CDbl(txtAllocateScore.Text)
-        .Cells(eRowData.rowTestDate, mTargetCol).Value = CDate(newDate)
+        .Cells(eRowData.rowCategory, mTargetCol).value = Trim(cmbCategoryValue.Text)
+        .Cells(eRowData.rowTestName, mTargetCol).value = Trim(txtTestName.Text)
+        .Cells(eRowData.rowPerspective, mTargetCol).value = Trim(cmbPerspective.Text)
+        .Cells(eRowData.rowDetail, mTargetCol).value = Trim(txtDetail.Text)
+        .Cells(eRowData.rowAllocationScore, mTargetCol).value = CDbl(txtAllocateScore.Text)
+        .Cells(eRowData.rowTestDate, mTargetCol).value = CDate(newDate)
     End With
-
-    ' === シート再保護 ===
-    Call DataManagementModule.ProtectScoreCells
 
     MsgBox "テスト情報を更新しました。", vbInformation, "更新完了"
     Me.Hide
@@ -342,14 +335,14 @@ End Sub
 '===============================================================================
 Private Sub btnRetest_Click()
     Dim testKey As String
-    testKey = Sh_data.Cells(eRowData.rowKey, mTargetCol).Value
+    testKey = Sh_data.Cells(eRowData.rowKey, mTargetCol).value
 
     ' 確認ダイアログ
     Dim confirmResult As VbMsgBoxResult
     confirmResult = MsgBox( _
         "テスト「" & testKey & "」に追試を設定します。" & vbCrLf & _
-        "データシートの得点は追試中マーカー(N)に置換されます。" & vbCrLf & vbCrLf & _
-        "続行しますか？", _
+        "データシートの得点は追試中マーカー(N)に置き換わります。" & vbCrLf & vbCrLf & _
+        "実行しますか？", _
         vbQuestion + vbYesNo, "追試設定の確認")
     If confirmResult <> vbYes Then Exit Sub
 
@@ -372,7 +365,7 @@ Private Sub btnRetest_Click()
     btnRetest.Enabled = False
 
     MsgBox "追試シートを作成しました。" & vbCrLf & _
-           "データシートの得点は追試中マーカー(N)に置換されました。", _
+           "データシートの得点は追試中マーカー(N)に置き換わりました。", _
            vbInformation, "追試設定完了"
 End Sub
 
@@ -390,13 +383,13 @@ End Sub
 
 '===============================================================================
 ' 削除ボタン
-' 説明: 追試中のテストは強制削除の確認を行う。
+' 備考: 追試中のテストは強制削除の確認を行う。
 '       実際の削除処理は呼び出し元（Sh_data.Worksheet_BeforeDoubleClick）で実行。
 '===============================================================================
 Private Sub btnDelete_Click()
     ' 追試中チェック
     Dim firstChildVal As Variant
-    firstChildVal = Sh_data.Cells(eRowData.rowChildStart, mTargetCol).Value
+    firstChildVal = Sh_data.Cells(eRowData.rowChildStart, mTargetCol).value
     If CStr(firstChildVal) = RETEST_MARKER Then
         Dim confirmResult As VbMsgBoxResult
         confirmResult = MsgBox( _
@@ -432,6 +425,6 @@ End Property
 '===============================================================================
 ' テストキーを返す
 '===============================================================================
-Public Property Get TestKey() As String
-    TestKey = lblKeyValue.Caption
+Public Property Get testKey() As String
+    testKey = lblKeyValue.Caption
 End Property

@@ -1,50 +1,56 @@
+Attribute VB_Name = "PublicConstListModule"
 '===============================================================================
-' モジュール名: PublicConstListModule
-' 説明: システム全体で使用する定数・列挙型の定義
-' 修正履歴:
-'   - スペルミス修正（Pulic→Public, LASTANAME→LASTNAME, ALLOCATESCOTE→ALLOCATESCORE）
-'   - Integer→Long対応
-'   - システム上限値の定数追加
+' ���W���[����: PublicConstListModule
+' ����: �V�X�e���S�̂Ŏg�p����萔�E�񋓌^�̒�`
+' �C������:
+'   - �X�y���~�X�C���iPulic��Public, LASTANAME��LASTNAME, ALLOCATESCOTE��ALLOCATESCORE�j
+'   - Integer��Long�Ή�
+'   - �V�X�e������l�̒萔�ǉ�
 '===============================================================================
 Option Explicit
 
 '===============================================================================
-' システム上限値
+' �V�X�e������l
 '===============================================================================
-Public Const MAX_CHILDREN As Long = 40          ' 児童数上限
-Public Const MAX_TESTS As Long = 1000           ' テスト数上限
-Public Const MAX_PERSPECTIVES As Long = 5       ' 評価観点数上限
+Public Const MAX_CHILDREN As Long = 40          ' ���������
+Public Const MAX_TESTS As Long = 1000           ' �e�X�g�����
+Public Const MAX_PERSPECTIVES As Long = 5       ' �]���ϓ_�����
 
 '===============================================================================
-' 色定数
+' �V�[�g�ی�p�X���[�h�i�둀��h�~�p�A�铽�ړI�ł͂Ȃ��j
+'===============================================================================
+Public Const SHEET_PROTECT_PASSWORD As String = "KenichiroY"
+
+'===============================================================================
+' �F�萔
 '===============================================================================
 Public Const COLOR_NORMAL As Long = 15466475    'RGB(235, 255, 235)
 Public Const COLOR_BLUE As Long = 16770740      'RGB(180, 230, 255)
 Public Const COLOR_LIGHTBLUE As Long = 16777160 'RGB(200, 255, 255)
 Public Const COLOR_GREEN As Long = 13172680     'RGB(200, 255, 200)
-Public Const COLOR_ERROR As Long = 255          'RGB(255, 0, 0) - エラー表示用
-Public Const COLOR_RETEST_HEADER As Long = 7882751   'RGB(255, 200, 120) - 追試中ヘッダー用オレンジ
-Public Const COLOR_RETEST_CELL As Long = 11854079    'RGB(255, 230, 180) - 追試中得点セル用薄オレンジ
+Public Const COLOR_ERROR As Long = 255          'RGB(255, 0, 0) - �G���[�\���p
+Public Const COLOR_RETEST_HEADER As Long = 7882751   'RGB(255, 200, 120) - �ǎ����w�b�_�[�p�I�����W
+Public Const COLOR_RETEST_CELL As Long = 11854079    'RGB(255, 230, 180) - �ǎ������_�Z���p���I�����W
 
 '===============================================================================
-' 得点変換方式
+' ���_�ϊ�����
 '===============================================================================
 Public Enum eConversionType
-    convNone = 0        ' 変換なし
-    convSqrt = 1        ' 平方根
-    convLog2 = 2        ' 底2の対数
+    convNone = 0        ' �ϊ��Ȃ�
+    convSqrt = 1        ' ������
+    convLog2 = 2        ' ��2�̑ΐ�
 End Enum
 
 '===============================================================================
-' 名簿シート定数
+' ����V�[�g�萔
 '===============================================================================
-Public Const RNG_NAMELIST_CHILDCOUNT As String = "E8"
+Public Const RNG_NAMELIST_CHILDCOUNT As String = "F8"
 Public Const NAMELIST_HEADER_ROW As Long = 10
 Public Const NAMELIST_DATA_START_ROW As Long = 11
-Public Const NAMELIST_COL_END_DATE As Long = 6   ' F列：在籍終了日
+Public Const NAMELIST_COL_END_DATE As Long = 6   ' F��F�ݐЏI����
 
 '===============================================================================
-' テスト入力シート定数
+' �e�X�g���̓V�[�g�萔
 '===============================================================================
 Public Const RNG_INPUT_SUBJECT As String = "D4"
 Public Const RNG_INPUT_CATEGORY As String = "F4"
@@ -68,11 +74,11 @@ End Enum
 
 Public Enum eColInput
     colDataStart = 4
-    colDataEnd = 8          ' 最大5列（4-8）
+    colDataEnd = 8          ' �ő�5��i4-8�j
 End Enum
 
 '===============================================================================
-' データシート定数
+' �f�[�^�V�[�g�萔
 '===============================================================================
 Public Enum eRowData
     rowKey = 4
@@ -99,13 +105,13 @@ End Enum
 
 Public Enum eColData
     colCode = 1
-    colLastName = 2         ' 修正: LASTANAME → colLastName
+    colLastName = 2
     colFirstName = 3
     colDataStart = 4
 End Enum
 
 '===============================================================================
-' メニューシート定数
+' ���j���[�V�[�g�萔
 '===============================================================================
 Public Enum eRowMenu
     rowStart = 11
@@ -113,37 +119,38 @@ End Enum
 
 Public Enum eColMenu
     colCode = 2
-    colLastName = 3         ' 修正: LASTNAME
+    colLastName = 3
     colFirstName = 4
     colSubject = 5
     colPerspective = 6
     colTestName = 7
     colDetail = 8
     colScore = 9
-    colAllocateScore = 10   ' 修正: ALLOCATESCOTE → colAllocateScore
+    colAllocateScore = 10
     colToRow = 11
     colToCol = 12
 End Enum
 
 '===============================================================================
-' Subjectシート定数
+' Subject�V�[�g�萔
 '===============================================================================
 Public Const RNG_SUBJECT_SUBJECT As String = "B2"
 Public Const RNG_SUBJECT_ISADJUST As String = "B4"
 Public Const RNG_SUBJECT_ADJSCORE_DISP As String = "B5"
-Public Const RNG_SUBJECT_WEIGHT_NORMALIZED As String = "B6"  ' 重み正規化状態
+Public Const RNG_SUBJECT_STATS_DISP As String = "B6"        ' ���v�s�\�����
+Public Const RNG_SUBJECT_WEIGHT_NORMALIZED As String = "B7"  ' �d�ݐ��K�����
 
-' 重み正規化の基準配点
+' �d�ݐ��K���̊�z�_
 Public Const NORMALIZE_BASE_SCORE As Long = 100
 
 Public Enum eColShiftSubject
-    colNoWeightSum = 2          ' 重み無し合計
-    colNoWeightAllocate = 3     ' 重み無し配点
-    colIncludeWeightSum = 4     ' 重みあり合計
-    colIncludeWeightAllocate = 5 ' 重みあり配点
-    colNoWeightRatio = 7        ' 重み無し達成率
-    colIncludeWeightRatio = 8   ' 加重達成率
-    colABCBorder = 10           ' ABC閾値
+    colNoWeightSum = 2          ' �d�݂Ȃ����v
+    colNoWeightAllocate = 3     ' �d�݂Ȃ��z�_
+    colIncludeWeightSum = 4     ' �d�ݕt�����v
+    colIncludeWeightAllocate = 5 ' �d�ݕt���z�_
+    colNoWeightRatio = 7        ' �d�݂Ȃ��B����
+    colIncludeWeightRatio = 8   ' ���d�B����
+    colABCBorder = 10           ' ABC臒l
 End Enum
 
 Public Enum eRowSubject
@@ -170,104 +177,106 @@ Public Enum eRowSubject
 End Enum
 
 '===============================================================================
-' Resultシート定数
+' Result�V�[�g�萔
 '===============================================================================
-Public Const RESULT_SUBJECT_ROW As Long = 8         ' 教科名行
-Public Const RESULT_PERSPECTIVE_ROW As Long = 9     ' 観点行
-Public Const RESULT_LABEL_ROW As Long = 10          ' ラベル行（達成率/ABC）
-Public Const RESULT_DATA_START_ROW As Long = 11     ' 児童データ開始行
-Public Const RESULT_DATA_START_COL As Long = 4      ' データ開始列（D列）
+Public Const RESULT_SUBJECT_ROW As Long = 8         ' ���Ȗ��s
+Public Const RESULT_PERSPECTIVE_ROW As Long = 9     ' �ϓ_�s
+Public Const RESULT_LABEL_ROW As Long = 10          ' ���x���s�i�B����/ABC�j
+Public Const RESULT_DATA_START_ROW As Long = 11     ' �����f�[�^�J�n�s
+Public Const RESULT_DATA_START_COL As Long = 4      ' �f�[�^�J�n��iD��j
 
 '===============================================================================
-' Settingシート定数
+' Setting�V�[�g�萔
 '===============================================================================
 Public Const SETTING_SUBJECT_START_ROW As Long = 3
 Public Const SETTING_SUBJECT_COL As Long = 2
 Public Const SETTING_KEY_CHAR_COL As Long = 1
 Public Const SETTING_KEY_COUNT_COL As Long = 3
 Public Const SETTING_PERSPECTIVE_COL As Long = 4
-Public Const SETTING_CATEGORY_COL As Long = 7
+Public Const SETTING_CATEGORY_COL As Long = 6
 Public Const SETTING_AB_THRESHOLD_COL As Long = 8
 Public Const SETTING_BC_THRESHOLD_COL As Long = 9
 
 '===============================================================================
-' エラーメッセージ定数
+' �G���[���b�Z�[�W�萔
 '===============================================================================
-Public Const ERR_MSG_REQUIRED_FIELD As String = "必須項目が入力されていません。" & vbCrLf & _
-    "教科、カテゴリ、実施日、テスト名をすべて入力してください。"
-Public Const ERR_MSG_NO_SCORE As String = "点数が1件も入力されていません。" & vbCrLf & _
-    "少なくとも1人分の点数を入力してください。"
-Public Const ERR_MSG_MISSING_PERSPECTIVE As String = "列目の評価観点が入力されていません。"
-Public Const ERR_MSG_MISSING_ALLOCATE As String = "列目の配点が入力されていません。"
-Public Const ERR_MSG_SCORE_EXCEEDS As String = "得点が配点を超えています。" & vbCrLf & _
-    "行: {ROW}, 列: {COL}" & vbCrLf & "得点: {SCORE}, 配点: {ALLOCATE}"
-Public Const ERR_MSG_NEGATIVE_SCORE As String = "得点に負の値は入力できません。" & vbCrLf & _
-    "行: {ROW}, 列: {COL}"
-Public Const ERR_MSG_ZERO_ALLOCATE As String = "配点に0は設定できません。（ゼロ除算エラーの原因になります）"
-Public Const ERR_MSG_MAX_TESTS As String = "テスト数が上限（{MAX}件）に達しています。" & vbCrLf & _
-    "新しいファイルを作成してください。"
-Public Const ERR_MSG_UNEXPECTED As String = "予期しないエラーが発生しました。" & vbCrLf & _
-    "エラー番号: {NUM}" & vbCrLf & "エラー内容: {DESC}" & vbCrLf & vbCrLf & _
-    "この画面のスクリーンショットを管理者にお見せください。"
+Public Const ERR_MSG_REQUIRED_FIELD As String = "�K�{���ڂ����͂���Ă��܂���B" & vbCrLf & _
+    "���ȁA�J�e�S���A���{���A�e�X�g�������ׂē��͂��Ă��������B"
+Public Const ERR_MSG_NO_SCORE As String = "�_����1�����͂���Ă��܂���B" & vbCrLf & _
+    "���Ȃ��Ƃ�1�l���̓_������͂��Ă��������B"
+Public Const ERR_MSG_MISSING_PERSPECTIVE As String = "�Y���̕]���ϓ_�����͂���Ă��܂���B"
+Public Const ERR_MSG_MISSING_ALLOCATE As String = "�Y���̔z�_�����͂���Ă��܂���B"
+Public Const ERR_MSG_SCORE_EXCEEDS As String = "���_���z�_�𒴂��Ă��܂��B" & vbCrLf & _
+    "�s: {ROW}, ��: {COL}" & vbCrLf & "���_: {SCORE}, �z�_: {ALLOCATE}"
+Public Const ERR_MSG_NEGATIVE_SCORE As String = "���_�ɕ��̒l�͓��͂ł��܂���B" & vbCrLf & _
+    "�s: {ROW}, ��: {COL}"
+Public Const ERR_MSG_ZERO_ALLOCATE As String = "�z�_��0�͐ݒ�ł��܂���B�i�[�����Z�G���[�̌����ɂȂ�܂��j"
+Public Const ERR_MSG_MAX_TESTS As String = "�e�X�g��������i{MAX}���j�ɒB���Ă��܂��B" & vbCrLf & _
+    "�V�����t�@�C�����쐬���Ă��������B"
+Public Const ERR_MSG_UNEXPECTED As String = "�\�����Ȃ��G���[���������܂����B" & vbCrLf & _
+    "�G���[�ԍ�: {NUM}" & vbCrLf & "�G���[���e: {DESC}" & vbCrLf & vbCrLf & _
+    "���̉�ʂ̃X�N���[���V���b�g���Ǘ��҂ɂ����肭�������B"
 
-Public Const MSG_POSTING_SUCCESS As String = "テストデータの登録が完了しました。"
-Public Const MSG_CONFIRM_DELETE As String = "選択したデータを削除してもよろしいですか？" & vbCrLf & _
-    "この操作は取り消せません。"
+Public Const MSG_POSTING_SUCCESS As String = "�e�X�g�f�[�^�̓o�^���������܂����B"
+Public Const MSG_CONFIRM_DELETE As String = "�I�������f�[�^���폜���Ă�낵���ł����H" & vbCrLf & _
+    "���̑���͎������܂���B"
 
 '===============================================================================
-' 追試関連定数
+' �ǎ��֘A�萔
 '===============================================================================
-Public Const RETEST_MARKER As String = "N"              ' 追試中マーカー（データシート得点セルに入る値）
-Public Const RETEST_FILE_SUFFIX As String = "_追試"      ' 追試ファイル名サフィックス
-Public Const RETEST_FILE_EXT As String = ".xlsm"         ' 追試ファイル拡張子
+Public Const RETEST_MARKER As String = "N"              ' �ǎ����}�[�J�[�i�f�[�^�V�[�g���_�Z���ɓ���l�j
+Public Const RETEST_FILE_SUFFIX As String = "_�ǎ�"      ' �ǎ��t�@�C�����T�t�B�b�N�X
+Public Const RETEST_FILE_EXT As String = ".xlsm"         ' �ǎ��t�@�C���g���q
 
-' テンプレートシート名（本体ファイルのVeryHiddenシート）
-Public Const RT_MENU_TEMPLATE_NAME As String = "RT_MENU"       ' MENUテンプレートシート名
-Public Const RT_TEMPLATE_NAME As String = "RT_TEMPLATE"        ' テストテンプレートシート名
+' �e���v���[�g�V�[�g���i�{�̃t�@�C����VeryHidden�V�[�g�j
+Public Const RT_MENU_TEMPLATE_NAME As String = "RT_MENU"       ' MENU�e���v���[�g�V�[�g��
+Public Const RT_TEMPLATE_NAME As String = "RT_TEMPLATE"        ' �e�X�g�e���v���[�g�V�[�g��
 
-' 追試設定の行位置（テスト入力シート）
-' 行28: 追試有無（列ごと: D28～H28、入力規則で "あり" を選択）
-Public Const ROW_INPUT_RETEST As Long = 28               ' 追試有無行
-Public Const RETEST_ENABLED_VALUE As String = "あり"      ' 追試有効の判定値
+' �ǎ��ݒ�̍s�ʒu�i�e�X�g���̓V�[�g�j
+' �s28: �ǎ��L���i�񂲂�: D28�`H28�A���͋K���� "����" ��I���j
+Public Const ROW_INPUT_RETEST As Long = 28               ' �ǎ��L���s
+Public Const RETEST_ENABLED_VALUE As String = "����"      ' �ǎ��L���̔���l
 
-' 追試シートのセル位置（追試ファイル内の各テストシート）
-' テスト情報はA-B列（列挿入の影響を受けない）
-Public Const RNG_RT_PARENT_KEY As String = "B3"          ' 追試元キー
-Public Const RNG_RT_SUBJECT As String = "B4"             ' 教科
-Public Const RNG_RT_TEST_NAME As String = "B5"           ' テスト名
-Public Const RNG_RT_PERSPECTIVE As String = "B6"         ' 観点
-Public Const RNG_RT_DETAIL As String = "B7"              ' 詳細
-' 算出設定はD-E列（列挿入はF列以降なので影響を受けない）
-Public Const RNG_RT_ALLOCATE As String = "E3"            ' 配点
-Public Const RNG_RT_PASS_SCORE As String = "E4"          ' 合格点（空欄可）
-Public Const RNG_RT_METHOD As String = "E5"              ' 算出方法
-Public Const RNG_RT_PARAM As String = "E6"               ' 内分比α値（算出方法が内分点の場合のみ）
-Public Const RNG_RT_STATUS As String = "E7"              ' 状態（追試中 / 完了 / 反映済み）
+' �ǎ��V�[�g�̃Z���ʒu�i�ǎ��t�@�C�����̊e�e�X�g�V�[�g�j
+' �e�X�g���A-B��i��}���̉e�����󂯂Ȃ��j
+Public Const RNG_RT_PARENT_KEY As String = "B3"          ' �ǎ����L�[
+Public Const RNG_RT_SUBJECT As String = "B4"             ' ����
+Public Const RNG_RT_TEST_NAME As String = "B5"           ' �e�X�g��
+Public Const RNG_RT_PERSPECTIVE As String = "B6"         ' �ϓ_
+Public Const RNG_RT_DETAIL As String = "B7"              ' �ڍ�
+' �Z�o�ݒ�D-E��i��}��:F��ȍ~�Ȃ̂ŉe�����󂯂Ȃ��j
+Public Const RNG_RT_ALLOCATE As String = "E3"            ' �z�_
+Public Const RNG_RT_PASS_SCORE As String = "E4"          ' ���i�_�i�󗓉j
+Public Const RNG_RT_METHOD As String = "E5"              ' �Z�o���@
+Public Const RNG_RT_PARAM As String = "E6"               ' �����䃿�l�i�Z�o���@�������_�̏ꍇ�̂݁j
+Public Const RNG_RT_STATUS As String = "E7"              ' ��ԁi�ǎ��� / ���� / ���f�ς݁j
 
-' 追試シートのデータ領域
-Public Const RT_HEADER_ROW As Long = 10                  ' ヘッダー行
-Public Const RT_DATA_START_ROW As Long = 11              ' 児童データ開始行
-Public Const RT_COL_CODE As Long = 1                     ' A列：コード
-Public Const RT_COL_LASTNAME As Long = 2                 ' B列：姓
-Public Const RT_COL_FIRSTNAME As Long = 3                ' C列：名
-Public Const RT_COL_ORIGINAL As Long = 4                 ' D列：本試
-Public Const RT_COL_RETEST_START As Long = 5             ' E列～：追試1, 追試2, ...
-Public Const RT_COL_FINAL_OFFSET As Long = 1             ' 最終列は最後の追試列の1つ右
+' �ǎ��V�[�g�̃f�[�^�̈�
+Public Const RT_HEADER_ROW As Long = 10                  ' �w�b�_�[�s
+Public Const RT_DATA_START_ROW As Long = 11              ' �����f�[�^�J�n�s
+Public Const RT_COL_CODE As Long = 1                     ' A��F�R�[�h
+Public Const RT_COL_LASTNAME As Long = 2                 ' B��F��
+Public Const RT_COL_FIRSTNAME As Long = 3                ' C��F��
+Public Const RT_COL_ORIGINAL As Long = 4                 ' D��F�{��
+Public Const RT_COL_RETEST_START As Long = 5             ' E��`�F�ǎ�1, �ǎ�2, ...
+Public Const RT_COL_FINAL_OFFSET As Long = 1             ' �ŏI��͍Ō�̒ǎ���+1�E
 
-' 算出方法の選択肢
-Public Const RT_METHOD_PASS_SCORE As String = "合格点"
-Public Const RT_METHOD_MAX As String = "最大値"
-Public Const RT_METHOD_AVERAGE As String = "平均値"
-Public Const RT_METHOD_MEDIAN As String = "中央値"
-Public Const RT_METHOD_INTERPOLATION As String = "内分点"
-Public Const RT_METHOD_ORIGINAL_ONLY As String = "本試のみ"
+' �Z�o���@�̑I����
+Public Const RT_METHOD_PASS_SCORE As String = "���i�_"
+Public Const RT_METHOD_MAX As String = "�ő�l"
+Public Const RT_METHOD_AVERAGE As String = "���ϒl"
+Public Const RT_METHOD_MEDIAN As String = "�����l"
+Public Const RT_METHOD_INTERPOLATION As String = "�����_"
+Public Const RT_METHOD_ORIGINAL_ONLY As String = "�{���̂�"
 
-' 追試ファイルMENUシートのセル位置
+' �ǎ��t�@�C��MENU�V�[�g�̃Z���ʒu
 Public Const RT_MENU_DATA_START_ROW As Long = 4
-Public Const RT_MENU_COL_KEY As Long = 1                 ' A列：キー
-Public Const RT_MENU_COL_SUBJECT As Long = 2             ' B列：教科
-Public Const RT_MENU_COL_TESTNAME As Long = 3            ' C列：テスト名
-Public Const RT_MENU_COL_PERSPECTIVE As Long = 4         ' D列：観点
-Public Const RT_MENU_COL_STATUS As Long = 5              ' E列：状態
-Public Const RT_MENU_COL_REMAINING As Long = 6           ' F列：残り人数
-Public Const RT_MENU_COL_SHEETNAME As Long = 7           ' G列：シート名
+Public Const RT_MENU_COL_KEY As Long = 1                 ' A��F�L�[
+Public Const RT_MENU_COL_SUBJECT As Long = 2             ' B��F����
+Public Const RT_MENU_COL_TESTNAME As Long = 3            ' C��F�e�X�g��
+Public Const RT_MENU_COL_PERSPECTIVE As Long = 4         ' D��F�ϓ_
+Public Const RT_MENU_COL_STATUS As Long = 5              ' E��F���
+Public Const RT_MENU_COL_REMAINING As Long = 6           ' F��F�c��l��
+Public Const RT_MENU_COL_SHEETNAME As Long = 7           ' G��F�V�[�g��
+
+

@@ -14,14 +14,14 @@
 | シート名 | CodeName | 用途 | 主要セル範囲 |
 |----------|----------|------|--------------|
 | MENU | sh_MENU | 未入力データ一覧・一括入力 | 11行目～:未入力一覧 |
-| 名簿 | sh_namelist | 児童名簿管理 | E8:児童数, 11行目～:児童データ |
+| 名簿 | sh_namelist | 児童名簿管理 | F8:児童数, 11行目～:児童データ |
 | テスト入力 | sh_input | テスト得点入力フォーム | D4:教科, F4:カテゴリ, J4:日付, D6:テスト名, 31行目～:児童得点 |
 | データ | Sh_data | テストデータ蓄積（自動更新） | 4行目:キー, 23行目～:児童得点 |
-| Subject | sh_subject | 教科別集計・ABC評価 | B2:教科名, B4:得点調整有効/無効, B6:重み正規化状態 |
+| Subject | sh_subject | 教科別集計・ABC評価 | B2:教科名, B4:得点調整有効/無効, B5:得点調整行表示状態, B6:統計行表示状態, B7:重み正規化状態 |
 | Result | sh_result | 評価結果の保存 | 8行目:教科名, 9行目:観点, 10行目:ラベル, 11行目～:児童データ |
-| IndividualAnalysis | sh_individual | 個人分析（将来実装予定） | - |
-| Setting | sh_setting | 教科・観点・カテゴリ・ABC閾値の設定 | A列:教科文字, B列:教科, C列:キー最終値, D列:観点, E列:学期, G列:カテゴリ, H-I列:ABC閾値 |
-| RT_MENU（テンプレート） | sh_rt_menu_template | 追試ファイルMENUのテンプレート（VeryHidden） | - |
+| IndividualAnalysis | sh_individual | テスト比較分析（箱ひげ図・散布図・T検定） | 9行目:キー, 10行目:日付, 11行目:教科, 12行目:テスト名, 13行目:観点, 14行目:配点, 15行目～:児童得点 |
+| Setting | sh_setting | 教科・観点・カテゴリ・ABC閾値の設定 | A列:教科文字, B列:教科, C列:キー最終値, D列:観点, E列:学期, F列:カテゴリ, H-I列:ABC閾値 |
+| RT_MENU（テンプレート） | sh_rt_menu | 追試ファイルMENUのテンプレート（VeryHidden） | - |
 | RT_TEMPLATE（テンプレート） | sh_rt_template | 追試シートのテンプレート（VeryHidden） | - |
 
 ## VBAモジュール構成
@@ -60,6 +60,7 @@
 | frmScoreEdit | 得点修正ダイアログ | `lblSubject`, `lblPerspective`, `lblTestname`, `lblChildName`, `lblAllocateScore`, `lblCurrentScore`, `txtNewScore`, `lblHint`, `btnUpdate`, `btnCancel`, `btn_Exempt` |
 | frmTestEdit | テスト情報編集+後出し追試設定+削除ダイアログ | `lblKeyValue`, `lblSubjectValue`, `cmbCategoryValue`, `txtTestName`, `cmbPerspective`, `txtDetail`, `txtAllocateScore`, `cmbYear`, `cmbMonth`, `cmbDay`, `btnUpdate`, `btnCancel`, `btnRetest`, `btnDelete` |
 | frm_retest_setting | 追試計算方法設定ダイアログ | `opbtn1`～`opbtn6`（ラジオボタン: 合格点/最大値/平均値/中央値/内分点/本試のみ）, `txtbox`（α値入力）, `btn_ok`, `btn_cancel` |
+| Analysis | テスト比較分析フォーム | `Com_Subject`（教科選択）, `UnitList`（テスト一覧）, `Det1`/`Det2`（グループ1/2）, `btn_det1`/`btn_det2`（追加）, `Deldet1`/`Deldet2`（削除）, `CommandButton1`（実行） |
 
 ## 主要機能
 
@@ -128,7 +129,7 @@
 
 ### 10. 追試機能 (RetestModule)
 - **追試ファイル生成**: テスト登録時に追試フラグ（行28に"あり"）がある列について、別ファイル（`成績処理_追試.xlsm`）に追試シートを自動生成
-- **テンプレート方式**: 本体ファイルのVeryHiddenシート（`sh_rt_menu_template`, `sh_rt_template`）をCodeNameで検索・コピーして追試シートを作成
+- **テンプレート方式**: 本体ファイルのVeryHiddenシート（`sh_rt_menu`, `sh_rt_template`）をCodeNameで検索・コピーして追試シートを作成
 - **追試回の追加**: 最終列の手前に列を挿入して追試回を追加（追試2, 追試3, ...）
 - **算出方法**: frm_retest_settingフォームで選択、6方式対応
   - **合格点**: 本試≧合格点→本試得点、追試で合格→合格点、それ以外→最高点
@@ -194,12 +195,14 @@ rowChildStart = 23          ' 児童データ開始行
 rowChildStart = 23          ' 児童データ開始行
 
 ' 重要なセル参照定数
-RNG_NAMELIST_CHILDCOUNT = "E8"           ' 名簿シートの児童数
+RNG_NAMELIST_CHILDCOUNT = "F8"           ' 名簿シートの児童数
 NAMELIST_COL_END_DATE = 6                ' 名簿シートの在籍終了日（F列）
 RNG_INPUT_SUBJECT = "D4"                 ' 入力シートの教科
 RNG_SUBJECT_SUBJECT = "B2"               ' Subjectシートの教科
 RNG_SUBJECT_ISADJUST = "B4"              ' 得点調整有効/無効
-RNG_SUBJECT_WEIGHT_NORMALIZED = "B6"     ' 重み正規化状態
+RNG_SUBJECT_ADJSCORE_DISP = "B5"         ' 得点調整行表示状態
+RNG_SUBJECT_STATS_DISP = "B6"            ' 統計行表示状態
+RNG_SUBJECT_WEIGHT_NORMALIZED = "B7"     ' 重み正規化状態
 
 ' Resultシート定数
 RESULT_SUBJECT_ROW = 8                   ' 教科名行
