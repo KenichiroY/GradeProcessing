@@ -119,6 +119,27 @@ ErrorHandler:
 End Sub
 
 '===============================================================================
+' 追試行の表示切替
+'===============================================================================
+Public Sub Cb_Retest()
+    On Error GoTo ErrorHandler
+
+    Dim cb As CheckBox
+    Set cb = sh_input.CheckBoxes("Cb_Retest")
+
+    If cb.value = xlOn Then
+        sh_input.Rows("28:28").Hidden = False
+    Else
+        sh_input.Rows("28:28").Hidden = True
+    End If
+    Exit Sub
+
+ErrorHandler:
+    Debug.Print "Cb_Retest Error: " & Err.Description
+End Sub
+
+
+'===============================================================================
 ' 入力フォームのクリアボタン
 '===============================================================================
 Public Sub ClearInputForm()

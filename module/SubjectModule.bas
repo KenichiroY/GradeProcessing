@@ -106,7 +106,6 @@ NextColumn:
     ' Subjectシートへの書き込み
     Call WriteToSubjectSheet(subjectInfo, scoreList, childCount, lastColSubject)
     
-    Call ErrorHandlerModule.ShowSuccess("データの収集が完了しました。（" & UBound(scoreList, 2) & "件）")
     
 CleanExit:
     Call ErrorHandlerModule.EndProcess
@@ -246,7 +245,9 @@ Public Sub CalculateABCEvaluation()
     ' 各児童の評価計算
     Call CalculateChildEvaluations(lastCol, childCount, abcThresholdCount, isAdjustEnabled)
     
-    Call ErrorHandlerModule.ShowSuccess("ABC評価の計算が完了しました。")
+    sh_subject.Rows("19:22").Hidden = False
+    sh_subject.Range(RNG_SUBJECT_STATS_DISP).value = "表示"
+
     
 CleanExit:
     Call ErrorHandlerModule.EndProcess
@@ -403,8 +404,8 @@ Private Function GetSelectedPerspectives(ByRef perspective() As Variant) As Long
     
     For i = 1 To count
         On Error Resume Next
-        If sh_subject.OLEObjects("perspective" & i).Object.value = True Then
-            perspective(i) = sh_subject.OLEObjects("perspective" & i).Object.Caption
+        If sh_subject.CheckBoxes("perspective" & i).value = xlOn Then
+            perspective(i) = sh_subject.CheckBoxes("perspective" & i).Caption
             GetSelectedPerspectives = GetSelectedPerspectives + 1
         Else
             perspective(i) = ""

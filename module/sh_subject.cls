@@ -9,8 +9,8 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 '===============================================================================
 ' モジュール名: sh_subject (Subjectシート)
-' 説明: Subjectシートのイベント処理とUI制御
-' 修正内容:
+' 用途: Subjectシートのイベント処理とUI制御
+' メンテナンス:
 '   - 変数宣言をLong型に統一
 '   - エラーハンドリング追加
 '   - デバッグコード削除
@@ -22,43 +22,43 @@ Option Explicit
 '===============================================================================
 Public Sub Bysubject_checkbox_initialize()
     On Error Resume Next
-    
+
     Dim i As Long
-    
+
     With sh_subject
         For i = 1 To MAX_PERSPECTIVES
             If Trim(sh_setting.Cells(i + 2, SETTING_PERSPECTIVE_COL).value & "") = "" Then
-                .OLEObjects("perspective" & i).Visible = False
+                .CheckBoxes("perspective" & i).Visible = False
             Else
-                .OLEObjects("perspective" & i).Object.Caption = _
+                .CheckBoxes("perspective" & i).Caption = _
                     sh_setting.Cells(i + 2, SETTING_PERSPECTIVE_COL).value
-                .OLEObjects("perspective" & i).Visible = True
+                .CheckBoxes("perspective" & i).Visible = True
             End If
         Next i
     End With
-    
+
     On Error GoTo 0
 End Sub
 
 '===============================================================================
-' 全チェックボックスを表示
+' 全チェックボックス表示
 '===============================================================================
 Public Sub AllCheckbox_Visible()
     On Error Resume Next
-    
+
     Dim i As Long
-    
+
     For i = 1 To MAX_PERSPECTIVES
-        sh_subject.OLEObjects("perspective" & i).Visible = True
+        sh_subject.CheckBoxes("perspective" & i).Visible = True
     Next i
-    
+
     On Error GoTo 0
 End Sub
 
 '===============================================================================
 ' データ消去ボタンのクリックイベント
 '===============================================================================
-Private Sub Delete_Sh_Subject_Click()
+Public Sub Delete_Sh_Subject_Click()
     On Error GoTo ErrorHandler
 
     Dim lastCol As Long
@@ -85,10 +85,9 @@ Private Sub Delete_Sh_Subject_Click()
     sh_subject.Range(sh_subject.Cells(eRowSubject.rowKey, eColData.colDataStart), _
                      sh_subject.Cells(lastRow, Columns.count)).ClearContents
 
-    ' 重み正規化状態もリセット
+    ' 重み正規化状態をリセット
     Call SubjectModule.ResetWeightNormalizedStatus
 
-    Call ErrorHandlerModule.ShowSuccess("データを消去しました。")
     Exit Sub
 
 ErrorHandler:
@@ -100,29 +99,29 @@ End Sub
 '===============================================================================
 ' 更新ボタンのクリックイベント
 '===============================================================================
-Private Sub Update_Click()
+Public Sub Update_Click()
     Call SubjectModule.CollectSubjectData
 End Sub
 
 '===============================================================================
 ' 評価ボタンのクリックイベント
 '===============================================================================
-Private Sub Ope_result_Click()
+Public Sub Ope_result_Click()
     On Error GoTo ErrorHandler
-    
+
     ' 教科・観点の整合性チェック
     If Not SubjectModule.CheckSubjectPerspectiveConsistency() Then
         If Not ErrorHandlerModule.ShowConfirmation( _
-            "教科または観点の異なる項目が混在しています。" & vbCrLf & _
-            "このまま評価計算を行ってもよろしいですか？" & vbCrLf & vbCrLf & _
-            "※この計算は何度でもやり直すことができます。", "確認") Then
+            "教科または観点の異なる項目が存在しています。" & vbCrLf & _
+            "このまま評価計算を行ってよろしいですか？" & vbCrLf & vbCrLf & _
+            "この後の計算は何度でもやり直すことができます。", "確認") Then
             Exit Sub
         End If
     End If
-    
+
     Call SubjectModule.CalculateABCEvaluation
     Exit Sub
-    
+
 ErrorHandler:
     Dim errInfo As ErrorInfo
     errInfo = ErrorHandlerModule.CreateErrorInfo("sh_subject", "Ope_result_Click")
@@ -155,10 +154,10 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
         If Target.Row = 7 And Target.value = "●" Then
             Cancel = True
 
-            ' 既存の採用（★と採用テキスト）を候補（●と候補テキスト）に戻す
+            ' 他の採用（★と採用テキスト）を候補（●と候補テキスト）に戻す
             Call ResetAdoptedToCandidate
 
-            ' クリックした列を採用に変更（7行目:★、8行目:採用）
+            ' クリックされた列を採用に変更（7行目:★、8行目:採用）
             Target.value = "★"
             .Cells(8, Target.Column).value = "採用"
 
@@ -199,7 +198,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
                 Exit Sub
             End If
 
-            ' 達成率列と最終決定ABC列を取得
+            ' 比率列と最終決定ABC列を取得
             ratioCol = FindRatioColumn()
             finalDecisionCol = Target.Column
 
@@ -216,10 +215,10 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
         If Target.Row = 8 And Target.value = "候補" Then
             Cancel = True
 
-            ' 既存の採用（★と採用テキスト）を候補（●と候補テキスト）に戻す
+            ' 他の採用（★と採用テキスト）を候補（●と候補テキスト）に戻す
             Call ResetAdoptedToCandidate
 
-            ' クリックした列を採用に変更（7行目:★、8行目:採用）
+            ' クリックされた列を採用に変更（7行目:★、8行目:採用）
             .Cells(7, Target.Column).value = "★"
             Target.value = "採用"
 
@@ -253,7 +252,7 @@ End Sub
 
 '===============================================================================
 ' 採用（★/採用）を候補（●/候補）に戻す
-' 7行目と8行目を連動してリセット
+' 7行目と8行目を、連動してリセット
 '===============================================================================
 Private Sub ResetAdoptedToCandidate()
     Dim col As Long
@@ -276,7 +275,7 @@ Private Sub ResetAdoptedToCandidate()
 End Sub
 
 '===============================================================================
-' 採用されている候補があるか確認
+' 採用されている列があるか確認
 '===============================================================================
 Private Function HasAdoptedCandidate() As Boolean
     Dim col As Long
@@ -322,7 +321,7 @@ Private Function FindFinalDecisionColumn() As Long
 End Function
 
 '===============================================================================
-' 加重達成率列を検索
+' 加重比率列を検索
 '===============================================================================
 Private Function FindRatioColumn() As Long
     Dim col As Long
@@ -334,7 +333,7 @@ Private Function FindRatioColumn() As Long
         lastCol = .Cells(8, Columns.count).End(xlToLeft).Column
 
         For col = eColData.colDataStart To lastCol
-            If .Cells(8, col).value = "加重達成率" Then
+            If .Cells(8, col).value = "加重比率順" Then
                 FindRatioColumn = col
                 Exit Function
             End If
@@ -347,7 +346,7 @@ End Function
 '===============================================================================
 Public Sub Btm_adjustscore_hide_reveal()
     On Error Resume Next
-    
+
     With sh_subject
         If .Range(RNG_SUBJECT_ADJSCORE_DISP).value = "表示" Then
             .Rows("12:16").Hidden = True
@@ -357,7 +356,7 @@ Public Sub Btm_adjustscore_hide_reveal()
             .Range(RNG_SUBJECT_ADJSCORE_DISP).value = "表示"
         End If
     End With
-    
+
     On Error GoTo 0
 End Sub
 
@@ -366,30 +365,28 @@ End Sub
 '===============================================================================
 Public Sub Btn_IS_adj_score()
     On Error GoTo ErrorHandler
-    
+
     Dim lastCol As Long
-    
+
     With sh_subject
         lastCol = .Cells(eRowSubject.rowKey, Columns.count).End(xlToLeft).Column
-        
+
         If lastCol >= eColData.colDataStart Then
             Call ErrorHandlerModule.ShowValidationError( _
                 "得点調整の切り替えは、データを消去してから行ってください。" & vbCrLf & _
                 "「消去」ボタンを押してから切り替えてください。")
             Exit Sub
         End If
-        
+
         If .Range(RNG_SUBJECT_ISADJUST).value = "有効" Then
             .Range(RNG_SUBJECT_ISADJUST).value = "無効"
-            Call ErrorHandlerModule.ShowInfo("得点調整を無効にしました。")
         Else
             .Range(RNG_SUBJECT_ISADJUST).value = "有効"
-            Call ErrorHandlerModule.ShowInfo("得点調整を有効にしました。")
         End If
     End With
-    
+
     Exit Sub
-    
+
 ErrorHandler:
     Dim errInfo As ErrorInfo
     errInfo = ErrorHandlerModule.CreateErrorInfo("sh_subject", "Btn_IS_adj_score")
@@ -398,7 +395,7 @@ End Sub
 
 '===============================================================================
 ' 重み正規化ボタンのクリックイベント
-' 説明: 配点を基準（100点）に正規化し、すべてのテストを同じ重要度として扱う
+' 説明: 配点基準（100点）に正規化し、すべてのテストを同じ重要度として扱う
 '===============================================================================
 Public Sub Btn_NormalizeWeight_Click()
     Call SubjectModule.NormalizeWeightByAllocateScore
@@ -424,5 +421,3 @@ Public Sub Btn_stats_hide_reveal()
 
     On Error GoTo 0
 End Sub
-
-

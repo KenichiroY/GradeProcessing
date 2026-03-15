@@ -235,57 +235,56 @@ Public Sub SaveSubjectSnapshot()
     Application.DisplayAlerts = False
     Application.ScreenUpdating = False
 
+    sh_subject.Rows("19:22").Hidden = False
+    sh_subject.Range(RNG_SUBJECT_STATS_DISP).value = "表示"
+
+    sh_subject.Copy
+    Set newSheet = ActiveWorkbook.Sheets(1)
+    Dim tempWb As Workbook
+    Set tempWb = ActiveWorkbook
+
+    With newSheet
+        Call DeleteAllControls(newSheet)
+        .UsedRange.Copy
+        .Range("A1").PasteSpecial Paste:=xlPasteValues
+        Application.CutCopyMode = False
+        .Name = sheetName
+        .Protect Password:="", DrawingObjects:=True, Contents:=True, Scenarios:=True
+    End With
+
     If isNewFile Then
-        ' 新規ファイル作成: Subjectシートをコピーして新規ワークブック作成
-        sh_subject.Copy
-        Set targetWb = ActiveWorkbook
-        Set newSheet = targetWb.sheets(1)
+        tempWb.SaveAs FileName:=fullPath, FileFormat:=xlOpenXMLWorkbook
+        Set targetWb = tempWb
     Else
-        ' 既存ファイルを開く
         Set targetWb = Workbooks.Open(fullPath)
 
-        ' 同名シートがあれば連番を付ける
         counter = 0
         Dim originalSheetName As String
         originalSheetName = sheetName
         Do While SheetExists(targetWb, sheetName)
             counter = counter + 1
             sheetName = originalSheetName & "_" & counter
-            ' シート名31文字制限
             If Len(sheetName) > 31 Then
                 sheetName = Left(originalSheetName, 31 - Len("_" & counter)) & "_" & counter
             End If
         Loop
+        newSheet.Name = sheetName
 
-        ' Subjectシートをコピーしてこのワークブックに追加
-        sh_subject.Copy After:=targetWb.sheets(targetWb.sheets.count)
-        Set newSheet = targetWb.sheets(targetWb.sheets.count)
-    End If
+        newSheet.Move After:=targetWb.Sheets(targetWb.Sheets.Count)
 
-    ' シート名を設定
-    newSheet.Name = sheetName
+        On Error Resume Next
+        tempWb.Close SaveChanges:=False
+        On Error GoTo ErrorHandler
+        Set tempWb = Nothing
 
-    With newSheet
-        ' フォームボタン・図形・OLEオブジェクトを削除（マクロ実行防止）
-        Call DeleteAllControls(newSheet)
-
-        ' シート全体を値に変換（すべての数式を解消）
-        .UsedRange.Copy
-        .Range("A1").PasteSpecial Paste:=xlPasteValues
-        Application.CutCopyMode = False
-
-        ' シート保護（パスワードなし）
-        .Protect Password:="", DrawingObjects:=True, Contents:=True, Scenarios:=True
-    End With
-
-    ' 保存
-    If isNewFile Then
-        targetWb.SaveAs fileName:=fullPath, FileFormat:=xlOpenXMLWorkbook
-    Else
         targetWb.Save
     End If
 
     targetWb.Close SaveChanges:=False
+
+    On Error Resume Next
+    Kill fullPath & ":Zone.Identifier"
+    On Error GoTo 0
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
 
@@ -346,7 +345,6 @@ End Function
 '===============================================================================
 Private Sub DeleteAllControls(ByVal ws As Worksheet)
     Dim shp As Shape
-    Dim oleObj As OLEObject
 
     On Error Resume Next
 
@@ -355,10 +353,6 @@ Private Sub DeleteAllControls(ByVal ws As Worksheet)
         shp.Delete
     Next shp
 
-    ' OLEオブジェクト（ActiveXコントロール）を削除
-    For Each oleObj In ws.OLEObjects
-        oleObj.Delete
-    Next oleObj
 
     On Error GoTo 0
 End Sub
@@ -375,8 +369,8 @@ Private Function GetCurrentPerspectiveName() As String
     ' Subjectシートのチェックボックスから取得
     On Error Resume Next
     For i = 1 To MAX_PERSPECTIVES
-        If sh_subject.OLEObjects("perspective" & i).Object.value = True Then
-            perspectiveName = sh_subject.OLEObjects("perspective" & i).Object.Caption
+        If sh_subject.CheckBoxes("perspective" & i).value = xlOn Then
+            perspectiveName = sh_subject.CheckBoxes("perspective" & i).Caption
             If GetCurrentPerspectiveName = "" Then
                 GetCurrentPerspectiveName = perspectiveName
             Else

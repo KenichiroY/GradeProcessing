@@ -303,6 +303,7 @@ RT_METHOD_ORIGINAL_ONLY = "本試のみ"
 - 処理開始時は`BeginProcess`、終了時は`EndProcess`を呼ぶ
 - ユーザー向けメッセージは日本語で丁寧に
 - 日本語関数名はModule1のみ、他モジュールは英語関数名
+- **ActiveXコントロール禁止**: シート上のコントロールはすべてフォームコントロールを使用する。チェックボックスは`.CheckBoxes()`、ボタンは`.Buttons()`でアクセス。チェックボックスの値は`xlOn`/`xlOff`で判定（`True`/`False`ではない）
 
 ### 典型的なエラーハンドリングパターン
 ```vba
@@ -427,14 +428,17 @@ End Type
 ## シート上のボタン・コントロール
 
 ### 入力シート (sh_input)
-- チェックボックス: `Cb_clipping`, `Cb_convertScore`, `Cb_adjustScore`
-- ボタン: 登録（PostingModule.Posting）、クリア（ClearInputForm）、在籍/全員切替（ToggleEnrollmentFilter、ボタン名: Btn_enrollment）
+- フォームチェックボックス: `Cb_clipping`, `Cb_convertScore`, `Cb_adjustScore`, `Cb_Retest`
+- フォームボタン: 登録（PostingModule.Posting）、クリア（ClearInputForm）、在籍/全員切替（ToggleEnrollmentFilter、ボタン名: Btn_enrollment）
 
 ### Subjectシート (sh_subject)
-- チェックボックス: `perspective1`～`perspective5`（観点選択）
-- ボタン: 追加/更新（Update_Click）、評価（Ope_result_Click）、消去（Delete_Sh_Subject_Click）
-- ボタン: 得点調整表示切替（Btm_adjustscore_hide_reveal）、得点調整有効/無効（Btn_IS_adj_score）
-- ボタン: 重み正規化（Btn_NormalizeWeight_Click）
+- フォームチェックボックス: `perspective1`～`perspective5`（観点選択、`.CheckBoxes()`でアクセス）
+- フォームボタン: 追加/更新（Update_Click）、評価（Ope_result_Click）、消去（Delete_Sh_Subject_Click）
+- フォームボタン: 得点調整表示切替（Btm_adjustscore_hide_reveal）、得点調整有効/無効（Btn_IS_adj_score）
+- フォームボタン: 重み正規化（Btn_NormalizeWeight_Click）
+
+### 名簿シート (sh_namelist)
+- フォームボタン: 登録（Btn_Posting_Click）、未入力検索（SearchNotYetButton_Click）、転記（TransferButton_Click）
 
 ### MENUシート (sh_MENU)
 - ボタン: 未入力検索（SearchNotYetInput）、転記（TransferFromMenu）
