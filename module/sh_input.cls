@@ -91,6 +91,25 @@ Public Sub Cb_adjustScore()
     Else
         sh_input.Rows("20:23").Hidden = True
     End If
+    Exit Sub
+    
+ErrorHandler:
+    Debug.Print "Cb_Retest Error: " & Err.Description
+End Sub
+'===============================================================================
+' 追試チェックボックスの変更イベント
+'===============================================================================
+Public Sub Cb_retest()
+    On Error GoTo ErrorHandler
+    
+    Dim cb As CheckBox
+    Set cb = sh_input.CheckBoxes("Cb_Retest")
+    
+    If cb.value = xlOn Then
+        sh_input.Rows("27:28").Hidden = False
+    Else
+        sh_input.Rows("27:28").Hidden = True
+    End If
     
     Call AdjustedAllocateScoreVisibility
     Exit Sub

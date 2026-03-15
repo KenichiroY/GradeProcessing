@@ -35,7 +35,7 @@
 | PostingModule | テストデータ登録処理 | `Posting`, `TransferData`, `ResetInputForm`, `AssignKey`, `ColumnIndexToLetter` |
 | ValidationModule | 入力データ検証 | `ValidateRequiredFields`, `ValidateScoreData`, `ValidateClippingSettings`, `ValidateWeight` |
 | SubjectModule | 教科別集計・ABC評価計算 | `CollectSubjectData`, `CalculateABCEvaluation`, `NormalizeWeightByAllocateScore` |
-| DataManagementModule | データ修正・削除・エクスポート・保護 | `DeleteTestData`, `DeleteRetestSheetForKey`, `UpdateTestHeader`, `UpdateChildScore`, `ExportToCSV`, `ProtectScoreCells`, `UnprotectScoreCells` |
+| DataManagementModule | データ修正・削除・エクスポート・保護・初期化 | `DeleteTestData`, `DeleteRetestSheetForKey`, `UpdateTestHeader`, `UpdateChildScore`, `ExportToCSV`, `ProtectScoreCells`, `UnprotectScoreCells`, `CompleteReset` |
 | HistoryCheckModule | 未入力データ検索・一括転記 | `SearchNotYetInput`, `TransferFromMenu`, `SearchNotYetByTest` |
 | ErrorHandlerModule | エラーハンドリング共通機能 | `ShowError`, `ShowValidationError`, `BeginProcess`, `EndProcess` |
 | ScoreCalculationModule | 得点調整・変換計算（英語版） | `CalculateAdjustedAllocateScore`, `CalculateAdjustedScore` |
@@ -156,6 +156,13 @@
 - 「全員」ボタン押下: 全児童行を再表示
 - ボタンのキャプション（「在籍」/「全員」）が状態を保持（セルに状態を保存しない）
 - 実施日が未入力の場合は警告メッセージを表示して中止
+
+### 13. 完全初期化 (DataManagementModule.CompleteReset)
+- 設定シートのボタンから実行。新しい評価期間を開始するために全データを一括クリア
+- 二重確認ダイアログ（2回のYes/No確認）で誤操作を防止
+- **クリア対象**: データシート（テストデータ列）、Subjectシート（集計データ）、Resultシート（評価結果＋ヘッダー再生成）、MENUシート（未入力一覧＋書式）、入力シート（フォーム＋日付＋在籍ボタン）、IndividualAnalysisシート（分析データ）、Settingシートキーカウンター（C列を0にリセット）
+- **保持対象**: 児童名簿（sh_namelist）、設定シート（教科/観点/カテゴリ/閾値）、スナップショットファイル（_確定.xlsx）
+- 追試ファイルが存在する場合は警告メッセージを表示（自動削除はしない）
 
 ## 重要な定数・列挙型
 
@@ -431,6 +438,9 @@ End Type
 
 ### MENUシート (sh_MENU)
 - ボタン: 未入力検索（SearchNotYetInput）、転記（TransferFromMenu）
+
+### Settingシート (sh_setting)
+- ボタン: 完全初期化（DataManagementModule.CompleteReset）
 
 ## 用語
 
