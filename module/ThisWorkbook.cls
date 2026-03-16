@@ -9,8 +9,8 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 '===============================================================================
 ' モジュール名: ThisWorkbook
-' 説明: ワークブックレベルのイベント処理
-' 修正内容:
+' 用途: ワークブックレベルのイベント処理
+' メンテナンス:
 '   - コメントアウトされていたコードを整理
 '   - エラーハンドリング追加
 '   - 初期化処理の整理
@@ -18,7 +18,7 @@ Attribute VB_Exposed = True
 Option Explicit
 
 '===============================================================================
-' ワークブックを開いた時の処理
+' ワークブックが開かれた時の処理
 '===============================================================================
 Private Sub Workbook_Open()
     On Error GoTo ErrorHandler
@@ -29,7 +29,7 @@ Private Sub Workbook_Open()
     ' Subjectシートのチェックボックスを初期化
     Call InitializeSubjectCheckboxes
 
-    ' Resultシートの列見出しを初期化
+    ' Resultシートの列見出しを初期化する
     Call InitializeResultHeaders
 
     ' データシートの得点セルを保護
@@ -38,11 +38,14 @@ Private Sub Workbook_Open()
     ' 全シートのボタン・コントロールを保護（UserInterfaceOnly）
     Call InitializeSheetProtection
 
+    ' 教科未設定の場合、初期設定ウィザードを案内
+    Call CheckInitialSetup
+
     Exit Sub
-    
+
 ErrorHandler:
-    ' 起動時エラーはユーザーに通知
-    MsgBox "初期化中にエラーが発生しました。" & vbCrLf & _
+    ' 起動エラーはユーザーに通知
+    MsgBox "初期処理にエラーが発生しました。" & vbCrLf & _
            "一部の機能が正常に動作しない可能性があります。" & vbCrLf & vbCrLf & _
            "エラー: " & Err.Description, vbExclamation, "成績処理システム"
 End Sub
@@ -52,10 +55,10 @@ End Sub
 '===============================================================================
 Private Sub InitializeInputForm()
     On Error Resume Next
-    
-    ' 実施日に今日の日付を設定
+
+    ' 日本に合った日付を設定
     sh_input.Range(RNG_INPUT_DATE).value = Date
-    
+
     On Error GoTo 0
 End Sub
 
@@ -64,23 +67,23 @@ End Sub
 '===============================================================================
 Private Sub InitializeSubjectCheckboxes()
     On Error Resume Next
-    
+
     Dim i As Long
-    
+
     With sh_subject
         For i = 1 To MAX_PERSPECTIVES
             If Trim(sh_setting.Cells(i + 2, SETTING_PERSPECTIVE_COL).value & "") = "" Then
                 ' 観点が設定されていない場合は非表示
-                .OLEObjects("perspective" & i).Visible = False
+                .CheckBoxes("perspective" & i).Visible = False
             Else
                 ' 観点名を設定して表示
-                .OLEObjects("perspective" & i).Object.Caption = _
+                .CheckBoxes("perspective" & i).Caption = _
                     sh_setting.Cells(i + 2, SETTING_PERSPECTIVE_COL).value
-                .OLEObjects("perspective" & i).Visible = True
+                .CheckBoxes("perspective" & i).Visible = True
             End If
         Next i
     End With
-    
+
     On Error GoTo 0
 End Sub
 
@@ -90,7 +93,7 @@ End Sub
 Private Sub InitializeResultHeaders()
     On Error Resume Next
 
-    ' Resultシートの列見出しを自動生成
+    ' Resultシートの列見出しが未生成なら生成
     Call ResultModule.GenerateResultHeaders
 
     On Error GoTo 0
@@ -110,8 +113,8 @@ End Sub
 
 '===============================================================================
 ' シート保護の初期化（ボタン・コントロールの誤削除防止）
-' 説明: ボタンのあるシートにUserInterfaceOnly:=Trueで保護をかける。
-'       VBAからの操作は制限されず、ユーザーの手動操作のみがブロックされる。
+' 説明: ボタンのあるシートをUserInterfaceOnly:=Trueで保護する。
+'       VBAからの操作は制限されず、ユーザーの手動操作のみをブロックする。
 '       UserInterfaceOnlyはファイル保存時に保持されないため、毎回Open時に設定。
 '       ※ Sh_dataはProtectScoreCellsで別途保護済み
 '===============================================================================
@@ -120,7 +123,7 @@ Private Sub InitializeSheetProtection()
 
     Dim ws As Variant
     Dim sheets As Variant
-    sheets = Array(sh_input, sh_subject, sh_MENU, sh_namelist, sh_result, sh_setting)
+    sheets = Array(sh_input, sh_subject, sh_MENU, sh_namelist, sh_result)
 
     Dim i As Long
     For i = LBound(sheets) To UBound(sheets)
@@ -130,6 +133,9 @@ Private Sub InitializeSheetProtection()
             DrawingObjects:=True, Contents:=True, Scenarios:=False, _
             UserInterfaceOnly:=True
     Next i
+
+    ' Settingシートは教科列（A-C）のみロック、他は編集可能
+    Call InitialSetupModule.SetupSettingSheetProtection
 
     On Error GoTo 0
 End Sub
@@ -142,13 +148,13 @@ End Sub
 'End Sub
 
 '===============================================================================
-' ワークブックを閉じる前の処理
+' ワークブック終了前の処理
 '===============================================================================
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
-    
+
     ' 必要に応じて保存確認などを追加
-    
+
     On Error GoTo 0
 End Sub
 
@@ -157,10 +163,29 @@ End Sub
 '===============================================================================
 Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     On Error Resume Next
-    
+
     ' 保存前にデータの整合性チェックなどを行う場合はここに追加
-    
+
     On Error GoTo 0
 End Sub
 
+'===============================================================================
+' 初期設定チェック
+' 教科が未設定の場合、セットアップウィザードを起動する
+'===============================================================================
+Private Sub CheckInitialSetup()
+    On Error Resume Next
 
+    Dim subjectCount As Long
+    subjectCount = Application.WorksheetFunction.CountA(sh_setting.Range("B3:B20"))
+
+    If subjectCount = 0 Then
+        If MsgBox("教科が設定されていません。" & vbCrLf & _
+                  "初期設定ウィザードを起動しますか？", _
+                  vbYesNo + vbQuestion, "成績処理システム") = vbYes Then
+            Call InitialSetupModule.ShowSetupForm
+        End If
+    End If
+
+    On Error GoTo 0
+End Sub

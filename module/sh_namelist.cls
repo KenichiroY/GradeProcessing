@@ -12,7 +12,7 @@ Option Explicit
 '===============================================================================
 ' 登録ボタンのクリックイベント
 '===============================================================================
-Private Sub CommandButton1_Click()
+Public Sub Btn_Posting_Click()
     Call PostingModule.Posting
 End Sub
 
