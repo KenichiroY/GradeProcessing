@@ -333,7 +333,7 @@ Private Function FindRatioColumn() As Long
         lastCol = .Cells(8, Columns.count).End(xlToLeft).Column
 
         For col = eColData.colDataStart To lastCol
-            If .Cells(8, col).value = "â¡èdî‰ó¶èá" Then
+            If .Cells(8, col).value = "â¡èdíBê¨ó¶" Then
                 FindRatioColumn = col
                 Exit Function
             End If

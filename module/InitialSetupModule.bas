@@ -188,6 +188,17 @@ Private Sub SetupInputValidation()
     ' シート保護を復帰
     sh_input.Protect Password:=SHEET_PROTECT_PASSWORD, UserInterfaceOnly:=True
 
+    ' Subjectシートの教科ドロップダウン（B2）
+    sh_subject.Unprotect Password:=SHEET_PROTECT_PASSWORD
+    With sh_subject.Range(RNG_SUBJECT_SUBJECT).Validation
+        .Delete
+        .Add Type:=xlValidateList, _
+             AlertStyle:=xlValidAlertStop, _
+             Formula1:="=Setting!$B$3:$B$20"
+        .InCellDropdown = True
+    End With
+    sh_subject.Protect Password:=SHEET_PROTECT_PASSWORD, UserInterfaceOnly:=True
+
     On Error GoTo 0
 End Sub
 
