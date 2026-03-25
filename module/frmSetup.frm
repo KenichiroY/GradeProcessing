@@ -415,6 +415,19 @@ Private Sub UserForm_Activate()
 End Sub
 
 '===============================================================================
+' フォームクリック時にも児童数を更新（モードレスでActivateが発火しない場合の補完）
+'===============================================================================
+Private Sub UserForm_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    Static lastCount As Long
+    Dim currentCount As Long
+    currentCount = sh_namelist.Range(RNG_NAMELIST_CHILDCOUNT).value
+    If currentCount <> lastCount Then
+        Call UpdateChildCount
+        lastCount = currentCount
+    End If
+End Sub
+
+'===============================================================================
 ' 名簿シートを開くボタン（モードレスなのでそのまま名簿シートへ移動）
 '===============================================================================
 Private Sub btnOpenNamelist_Click()
@@ -447,7 +460,8 @@ Private Sub btnAddCustom_Click()
     mAllSubjects(mSubjectCount).IsCustom = True
 
     Call RefreshSubjectList
-    ' 新しく追加した項目を選択状態にする
+    ' 新しく追加した項目を選択状態にし、フォーカスも移動する
+    lstSubjects.ListIndex = mSubjectCount - 1
     lstSubjects.Selected(mSubjectCount - 1) = True
     txtCustomSubject.value = ""
 End Sub

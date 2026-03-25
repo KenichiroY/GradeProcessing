@@ -29,7 +29,9 @@ Public Sub FormatResultSheet()
     Dim lastCol As Long, lastRow As Long
     Dim childCount As Long
 
-    lastCol = ws.Cells(RESULT_SUBJECT_ROW, Columns.count).End(xlToLeft).Column
+    ' RESULT_SUBJECT_ROW（8行目）は結合セルのためEnd(xlToLeft)が左端を返す
+    ' RESULT_LABEL_ROW（10行目）は個別セルなので正確な最終列が取得できる
+    lastCol = ws.Cells(RESULT_LABEL_ROW, Columns.count).End(xlToLeft).Column
     childCount = sh_namelist.Range(RNG_NAMELIST_CHILDCOUNT).value
     lastRow = RESULT_DATA_START_ROW + childCount - 1
 

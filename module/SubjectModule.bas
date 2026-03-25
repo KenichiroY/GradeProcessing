@@ -21,7 +21,7 @@ Public Sub CollectSubjectData()
     Dim childCount As Long
     Dim targetSubject As String
     Dim scoreList() As Variant
-    Dim subjectInfo() As Variant
+    Dim SubjectInfo() As Variant
     Dim perspective() As Variant
     Dim lastColDatabase As Long
     Dim lastColSubject As Long
@@ -63,7 +63,7 @@ Public Sub CollectSubjectData()
     End If
     
     ' 配列の初期化
-    ReDim subjectInfo(14, 0)
+    ReDim SubjectInfo(14, 0)
     ReDim scoreList(childCount, 0)
     
     ' データシートから該当データを抽出
@@ -79,12 +79,12 @@ Public Sub CollectSubjectData()
                 ' 観点が選択されているかチェック
                 If IsPerspectiveSelected(CStr(.Cells(eRowData.rowPerspective, i).value), perspective) Then
                     ' 配列のサイズを拡張
-                    ReDim Preserve subjectInfo(14, UBound(subjectInfo, 2) + 1)
+                    ReDim Preserve SubjectInfo(14, UBound(SubjectInfo, 2) + 1)
                     ReDim Preserve scoreList(childCount, UBound(scoreList, 2) + 1)
                     
                     ' テスト情報を格納
                     For j = 0 To 14
-                        subjectInfo(j, UBound(subjectInfo, 2)) = .Cells(j + eRowData.rowKey, i).value
+                        SubjectInfo(j, UBound(SubjectInfo, 2)) = .Cells(j + eRowData.rowKey, i).value
                     Next j
                     
                     ' 得点データを格納
@@ -104,7 +104,7 @@ NextColumn:
     End If
     
     ' Subjectシートへの書き込み
-    Call WriteToSubjectSheet(subjectInfo, scoreList, childCount, lastColSubject)
+    Call WriteToSubjectSheet(SubjectInfo, scoreList, childCount, lastColSubject)
     
     
 CleanExit:
@@ -121,7 +121,7 @@ End Sub
 '===============================================================================
 ' Subjectシートへのデータ書き込み
 '===============================================================================
-Private Sub WriteToSubjectSheet(ByRef subjectInfo() As Variant, ByRef scoreList() As Variant, _
+Private Sub WriteToSubjectSheet(ByRef SubjectInfo() As Variant, ByRef scoreList() As Variant, _
                                 ByVal childCount As Long, ByVal lastColSubject As Long)
     On Error GoTo ErrorHandler
     
@@ -137,7 +137,7 @@ Private Sub WriteToSubjectSheet(ByRef subjectInfo() As Variant, ByRef scoreList(
             ' 既に登録済みかチェック
             foundFlag = False
             For j = eColData.colDataStart To lastColSubject
-                If .Cells(eRowSubject.rowKey, j).value = subjectInfo(0, i) Then
+                If .Cells(eRowSubject.rowKey, j).value = SubjectInfo(0, i) Then
                     foundFlag = True
                     Exit For
                 End If
@@ -154,7 +154,7 @@ Private Sub WriteToSubjectSheet(ByRef subjectInfo() As Variant, ByRef scoreList(
                 
                 ' テスト情報の転記
                 For j = 0 To 14
-                    .Cells(j + eRowSubject.rowKey, lastColSubject).value = subjectInfo(j, i)
+                    .Cells(j + eRowSubject.rowKey, lastColSubject).value = SubjectInfo(j, i)
                 Next j
                 
                 ' 調整後配点の数式
@@ -369,8 +369,8 @@ Private Sub CalculateChildEvaluations(ByVal lastCol As Long, ByVal childCount As
             For j = 1 To abcThresholdCount
                 colLetterBorder = PostingModule.ColumnIndexToLetter(lastCol + eColShiftSubject.colABCBorder + j)
                 .Cells(rowNum, lastCol + eColShiftSubject.colABCBorder + j).formula = _
-                    "=IF(" & colLetterRatio & rowNum & ">" & colLetterBorder & rowABThreshold & ",""A"",IF(" & _
-                    colLetterRatio & rowNum & ">" & colLetterBorder & rowBCThreshold & ",""B"",""C""))"
+                    "=IF(" & colLetterRatio & rowNum & ">=" & colLetterBorder & rowABThreshold & ",""A"",IF(" & _
+                    colLetterRatio & rowNum & ">=" & colLetterBorder & rowBCThreshold & ",""B"",""C""))"
             Next j
         Next i
 
@@ -610,5 +610,7 @@ Private Function hasRetestMarker(ByVal colIndex As Long) As Boolean
         Next j
     End With
 End Function
+
+
 
 
